@@ -1,11 +1,11 @@
 {
-  "name": "safarsmart-backend",
+  "name": "azmenjaz-backend",
   "version": "1.0.0",
   "lockfileVersion": 3,
   "requires": true,
   "packages": {
     "": {
-      "name": "safarsmart-backend",
+      "name": "azmenjaz-backend",
       "version": "1.0.0",
       "license": "MIT",
       "dependencies": {
