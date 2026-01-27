@@ -17,6 +17,17 @@
   "bugs": {
     "url": "https://github.com/Azmenjaz/azmenjaz-backend/issues"
   },
+  {
+  "name": "azmenjaz-backend",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    ...
+  }
+}
   "homepage": "https://github.com/Azmenjaz/azmenjaz-backend#readme",
   "dependencies": {
     "amadeus": "^11.0.0",
