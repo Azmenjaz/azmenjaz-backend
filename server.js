@@ -1,4 +1,3 @@
-test
 
 const express = require('express');
 const cors = require('cors');
@@ -46,3 +45,4 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
 });
+
