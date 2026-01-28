@@ -1,5 +1,5 @@
 const axios = require('axios');
-const pool = require('../config/database');
+const pool = require('../../config/database');  // تأكد من المسار
 
 /**
  * إرسال تنبيه سعر عبر واتساب
