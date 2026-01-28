@@ -1,3 +1,4 @@
+const adminRoutes = require('./routes/adminRoutes');
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -50,3 +51,5 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`⏰ Cron job activated`);
 });
+
+app.use('/api/admin', adminRoutes);
