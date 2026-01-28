@@ -9,7 +9,6 @@ router.post('/create', async (req, res) => {
   try {
     const { userId, fromCity, toCity, travelDate, targetPrice } = req.body;
 
-    // Validation
     if (!userId || !fromCity || !toCity || !travelDate) {
       return res.status(400).json({ 
         success: false,
@@ -17,7 +16,6 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // Validate date is in the future
     const today = new Date();
     const travelDateObj = new Date(travelDate);
     if (travelDateObj < today) {
@@ -27,10 +25,8 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // Create alert
     const alert = await Alert.create(userId, fromCity, toCity, travelDate, targetPrice);
 
-    // Fetch current price
     const priceData = await AmadeusService.getFlightPrice(fromCity, toCity, travelDate);
     
     let currentPrice = null;
@@ -156,7 +152,6 @@ router.get('/price/:from/:to/:date', async (req, res) => {
       });
     }
 
-    // Save to history
     const route = `${from}-${to}`;
     await Price.save(route, date, priceData.price, priceData.airline);
 
@@ -188,6 +183,91 @@ router.get('/price-history/:route/:date', async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: error.message 
+    });
+  }
+});
+
+// ========== Routes الاختبار ==========
+
+// عرض التنبيهات النشطة
+router.get('/active-alerts', async (req, res) => {
+  try {
+    const alerts = await Alert.getActive();
+    
+    res.json({
+      success: true,
+      count: alerts.length,
+      alerts: alerts.map(a => ({
+        id: a.id,
+        user: a.name,
+        route: `${a.from_city} → ${a.to_city}`,
+        date: a.travel_date,
+        phone: a.phone
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// تشغيل Cron Job يدوياً
+router.get('/run-cron-test', async (req, res) => {
+  try {
+    const { checkAllPrices } = require('../cron/priceChecker');
+    
+    console.log('🧪 بدء اختبار Cron Job يدوياً...');
+    await checkAllPrices();
+    
+    res.json({
+      success: true,
+      message: 'تم تشغيل Cron Job بنجاح! شوف الـ Logs في Railway'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// اختبار إرسال واتساب
+router.post('/test-whatsapp', async (req, res) => {
+  try {
+    const { phone, name } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'رقم الجوال مطلوب' 
+      });
+    }
+
+    const { sendPriceAlert } = require('../services/notificationService');
+    
+    await sendPriceAlert({
+      userName: name || 'عزيزي العميل',
+      userPhone: phone,
+      fromCity: 'RUH',
+      toCity: 'JED',
+      travelDate: '2026-03-15',
+      price: 299,
+      recommendation: {
+        action: 'test',
+        message: '🧪 هذه رسالة اختبار من أزمنجاز!'
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'تم إرسال رسالة واتساب! (شوف الـ Logs أو جوالك)'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
