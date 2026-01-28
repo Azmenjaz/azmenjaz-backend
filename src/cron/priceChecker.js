@@ -1,10 +1,10 @@
 const cron = require('node-cron');
-const Alert = require('../models/Alert');
-const Price = require('../models/Price');
-const User = require('../models/User');
-const AmadeusService = require('../services/amadeusService');
+const Alert = require('../../models/Alert');
+const Price = require('../../models/Price');
+const User = require('../../models/User');
+const AmadeusService = require('../../services/amadeusService');
 const { analyzePriceChange } = require('../utils/priceAnalyzer');
-const { sendPriceAlert } = require('../services/notificationService');
+const { sendPriceAlert } = require('../../services/notificationService');
 
 // جدولة: كل 12 ساعة (8 صباحاً و 8 مساءً)
 const scheduleTask = () => {
