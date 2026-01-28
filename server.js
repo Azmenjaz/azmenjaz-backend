@@ -22,6 +22,7 @@ app.use(express.json());
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/', (req, res) => {
@@ -52,4 +53,3 @@ app.listen(PORT, () => {
   console.log(`⏰ Cron job activated`);
 });
 
-app.use('/api/admin', adminRoutes);
