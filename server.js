@@ -6,7 +6,7 @@ const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 
 // ⭐ استيراد Cron Job
-const { scheduleTask } = require('src/cron/priceChecker');
+const { scheduleTask } = require('./src/cron/priceChecker');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -50,4 +50,5 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`⏰ Cron job scheduled for price checking`);
 });
+
 
