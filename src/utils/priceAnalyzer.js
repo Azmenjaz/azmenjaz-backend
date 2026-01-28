@@ -1,4 +1,4 @@
-const Price = require('../models/Price');
+const Price = require('../../models/Price');
 
 /**
  * تحليل تغيير السعر وتحديد ما إذا كان يجب إرسال تنبيه
