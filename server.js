@@ -27,6 +27,14 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Health check
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Azmenjaz API Running ✅',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
+
   // Test Amadeus connection
 app.get('/api/test-amadeus', async (req, res) => {
   try {
@@ -53,7 +61,6 @@ app.post('/api/flights/search', async (req, res) => {
 
     console.log('🔍 Flight search request:', { originCode, destinationCode, departureDate });
 
-    // التحقق من البيانات المدخلة
     if (!originCode || !destinationCode || !departureDate) {
       return res.status(400).json({
         success: false,
@@ -61,7 +68,6 @@ app.post('/api/flights/search', async (req, res) => {
       });
     }
 
-    // التحقق من أكواد المدن
     const validCities = ['RUH', 'JED', 'DMM', 'AHB', 'TIF', 'MED'];
     if (!validCities.includes(originCode) || !validCities.includes(destinationCode)) {
       return res.status(400).json({
@@ -70,7 +76,6 @@ app.post('/api/flights/search', async (req, res) => {
       });
     }
 
-    // التحقق من أن المدينتين مختلفتين
     if (originCode === destinationCode) {
       return res.status(400).json({
         success: false,
@@ -78,7 +83,6 @@ app.post('/api/flights/search', async (req, res) => {
       });
     }
 
-    // التحقق من التاريخ
     const searchDate = new Date(departureDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -90,7 +94,6 @@ app.post('/api/flights/search', async (req, res) => {
       });
     }
 
-    // البحث عن الرحلات
     const result = await AmadeusService.searchFlights(
       originCode, 
       destinationCode, 
@@ -101,7 +104,6 @@ app.post('/api/flights/search', async (req, res) => {
       return res.status(500).json(result);
     }
 
-    // إضافة روابط الحجز
     const flights = result.flights.map(flight => ({
       ...flight,
       bookingLink: AmadeusService.getBookingLink(flight.airlineCode)
@@ -112,25 +114,19 @@ app.post('/api/flights/search', async (req, res) => {
     res.json({
       success: true,
       flights: flights,
-      count: flights.length,
-      searchParams: {
-        from: originCode,
-        to: destinationCode,
-        date: departureDate
-      }
+      count: flights.length
     });
 
   } catch (error) {
     console.error('❌ Search error:', error);
     res.status(500).json({
       success: false,
-      error: 'حدث خطأ في البحث عن الرحلات',
-      details: error.message
+      error: 'حدث خطأ في البحث عن الرحلات'
     });
   }
 });
 
-// Get price for specific flight (for cron jobs)
+// Get price for specific flight
 app.post('/api/flights/price', async (req, res) => {
   try {
     const { originCode, destinationCode, departureDate } = req.body;
@@ -168,14 +164,6 @@ app.post('/api/flights/price', async (req, res) => {
     });
   }
 });
-  
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Azmenjaz API Running ✅',
-    version: '1.0.0',
-    timestamp: new Date().toISOString()
-  });
-});
 
 // 404 handler
 app.use((req, res) => {
@@ -196,6 +184,7 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`⏰ Cron job activated`);
 });
+
 
 
 
