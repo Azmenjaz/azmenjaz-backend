@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
+app.post('/api/flights/search', async (req, res) => {
 
 // ⭐ إضافة Cron Job
 const { scheduleTask } = require('./cron/priceChecker');
@@ -52,6 +53,7 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`⏰ Cron job activated`);
 });
+
 
 
 
