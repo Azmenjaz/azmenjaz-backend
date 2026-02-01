@@ -3,60 +3,35 @@ require('dotenv').config();
 
 const amadeus = new Amadeus({
   clientId: process.env.AMADEUS_CLIENT_ID,
-  clientSecret: process.env.AMADEUS_CLIENT_SECRET
+  clientSecret: process.env.AMADEUS_CLIENT_SECRET,
+  hostname: 'test' // استخدم 'production' بعد التأكد من أن كل شيء يعمل
 });
 
 class AmadeusService {
-  static async getFlightPrice(origin, destination, date) {
+  // البحث عن الرحلات (للاستخدام في الموقع)
+  static async searchFlights(origin, destination, date) {
     try {
+      console.log('🔍 Searching flights:', { origin, destination, date });
+
       const response = await amadeus.shopping.flightOffersSearch.get({
         originLocationCode: origin,
         destinationLocationCode: destination,
         departureDate: date,
         adults: '1',
         currencyCode: 'SAR',
-        max: 5
+        max: '10',
+        nonStop: 'false'
       });
+
+      console.log('✅ Amadeus API Response:', response.data.length, 'flights found');
 
       if (!response.data || response.data.length === 0) {
-        return null;
+        return {
+          success: true,
+          flights: [],
+          message: 'لم يتم العثور على رحلات'
+        };
       }
 
-      const prices = response.data.map(offer => ({
-        price: parseFloat(offer.price.total),
-        airline: offer.validatingAirlineCodes[0],
-        currency: offer.price.currency
-      }));
-
-      prices.sort((a, b) => a.price - b.price);
-      
-      return {
-        price: prices[0].price,
-        airline: prices[0].airline,
-        allPrices: prices
-      };
-
-    } catch (error) {
-      console.error('❌ Amadeus API Error:', error.response?.data || error.message);
-      return null;
-    }
-  }
-
-  static async searchFlights(origin, destination, dateRange) {
-    // للمستقبل: البحث عن أرخص أيام في نطاق تواريخ
-    try {
-      const response = await amadeus.shopping.flightOffers.get({
-        origin,
-        destination,
-        departureDate: dateRange.start,
-        returnDate: dateRange.end || null
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Search error:', error);
-      return null;
-    }
-  }
-}
-
-module.exports = AmadeusService;
+      // معالجة البيانات
+      const flights = response.data.map(
