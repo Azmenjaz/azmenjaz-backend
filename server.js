@@ -1,15 +1,10 @@
-const adminRoutes = require('./routes/adminRoutes');
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const AmadeusService = require('./services/amadeusService');
 const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
-app.post('/api/flights/search', async (req, res) => {
-
-// ⭐ إضافة Cron Job
-const { scheduleTask } = require('./cron/priceChecker');
+const AmadeusService = require('./services/amadeusService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,33 +19,24 @@ app.use(express.json());
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/alerts', alertRoutes);
-app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Azmenjaz API Running ✅',
+    message: 'Azmenjaz API Running',
     version: '1.0.0',
     timestamp: new Date().toISOString()
   });
 });
 
-  // Test Amadeus connection
+// Test Amadeus
 app.get('/api/test-amadeus', async (req, res) => {
   try {
-    console.log('🔍 Testing Amadeus API...');
-    console.log('📌 CLIENT_ID:', process.env.AMADEUS_CLIENT_ID ? '✅ موجود' : '❌ مفقود');
-    console.log('📌 CLIENT_SECRET:', process.env.AMADEUS_CLIENT_SECRET ? '✅ موجود' : '❌ مفقود');
-
+    console.log('Testing Amadeus API...');
     const result = await AmadeusService.testConnection();
-    
     res.json(result);
   } catch (error) {
-    console.error('❌ Test error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -59,46 +45,11 @@ app.post('/api/flights/search', async (req, res) => {
   try {
     const { originCode, destinationCode, departureDate } = req.body;
 
-    console.log('🔍 Flight search request:', { originCode, destinationCode, departureDate });
-
     if (!originCode || !destinationCode || !departureDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'يرجى إدخال جميع البيانات المطلوبة'
-      });
+      return res.status(400).json({ success: false, error: 'Missing data' });
     }
 
-    const validCities = ['RUH', 'JED', 'DMM', 'AHB', 'TIF', 'MED'];
-    if (!validCities.includes(originCode) || !validCities.includes(destinationCode)) {
-      return res.status(400).json({
-        success: false,
-        error: 'كود المدينة غير صحيح'
-      });
-    }
-
-    if (originCode === destinationCode) {
-      return res.status(400).json({
-        success: false,
-        error: 'يجب اختيار مدينتين مختلفتين'
-      });
-    }
-
-    const searchDate = new Date(departureDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (searchDate < today) {
-      return res.status(400).json({
-        success: false,
-        error: 'التاريخ يجب أن يكون في المستقبل'
-      });
-    }
-
-    const result = await AmadeusService.searchFlights(
-      originCode, 
-      destinationCode, 
-      departureDate
-    );
+    const result = await AmadeusService.searchFlights(originCode, destinationCode, departureDate);
 
     if (!result.success) {
       return res.status(500).json(result);
@@ -109,59 +60,32 @@ app.post('/api/flights/search', async (req, res) => {
       bookingLink: AmadeusService.getBookingLink(flight.airlineCode)
     }));
 
-    console.log('✅ Search successful:', flights.length, 'flights found');
-
-    res.json({
-      success: true,
-      flights: flights,
-      count: flights.length
-    });
+    res.json({ success: true, flights: flights, count: flights.length });
 
   } catch (error) {
-    console.error('❌ Search error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'حدث خطأ في البحث عن الرحلات'
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Get price for specific flight
+// Get price
 app.post('/api/flights/price', async (req, res) => {
   try {
     const { originCode, destinationCode, departureDate } = req.body;
 
     if (!originCode || !destinationCode || !departureDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required parameters'
-      });
+      return res.status(400).json({ success: false, error: 'Missing data' });
     }
 
-    const price = await AmadeusService.getFlightPrice(
-      originCode,
-      destinationCode,
-      departureDate
-    );
+    const price = await AmadeusService.getFlightPrice(originCode, destinationCode, departureDate);
 
     if (!price) {
-      return res.json({
-        success: false,
-        error: 'No flights found'
-      });
+      return res.json({ success: false, error: 'No flights found' });
     }
 
-    res.json({
-      success: true,
-      price: price
-    });
+    res.json({ success: true, price: price });
 
   } catch (error) {
-    console.error('❌ Price check error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -176,17 +100,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-// ⭐ تفعيل Cron Job
-scheduleTask();
-
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`⏰ Cron job activated`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
-
-
-
-
-
-
