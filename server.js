@@ -6,6 +6,25 @@ require('dotenv').config();
 const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 
+app.get('/test-amadeus', async (req, res) => {
+  try {
+    const response = await amadeus.shopping.flightOffersSearch.get({
+      originLocationCode: 'RUH',
+      destinationLocationCode: 'JED',
+      departureDate: '2026-02-15',
+      adults: '1'
+    });
+    
+    res.json({ success: true, flights: response.data.length });
+  } catch (error) {
+    res.json({ 
+      success: false, 
+      error: error.message,
+      description: error.description
+    });
+  }
+});
+
 // ⭐ إضافة Cron Job
 const { scheduleTask } = require('./cron/priceChecker');
 
@@ -52,4 +71,5 @@ app.listen(PORT, () => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`⏰ Cron job activated`);
 });
+
 
