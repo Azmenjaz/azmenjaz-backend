@@ -34,4 +34,143 @@ class AmadeusService {
       }
 
       // معالجة البيانات
-      const flights = response.data.map(
+      const flights = response.data.map(offer => ({
+        price: parseFloat(offer.price.total),
+        airline: this.getAirlineName(offer.validatingAirlineCodes[0]),
+        airlineCode: offer.validatingAirlineCodes[0],
+        currency: offer.price.currency,
+        segments: offer.itineraries[0].segments,
+        isDirect: offer.itineraries[0].segments.length === 1,
+        duration: offer.itineraries[0].duration,
+        departureTime: offer.itineraries[0].segments[0].departure.at,
+        arrivalTime: offer.itineraries[0].segments[offer.itineraries[0].segments.length - 1].arrival.at
+      }));
+
+      // ترتيب حسب السعر
+      flights.sort((a, b) => a.price - b.price);
+
+      return {
+        success: true,
+        flights: flights
+      };
+
+    } catch (error) {
+      console.error('❌ Amadeus API Error:', error);
+      
+      // معالجة الأخطاء المختلفة
+      if (error.response) {
+        console.error('Error response:', error.response.data);
+        return {
+          success: false,
+          error: 'فشل في الاتصال بخدمة الرحلات',
+          details: error.response.data
+        };
+      }
+
+      return {
+        success: false,
+        error: error.message || 'حدث خطأ غير متوقع'
+      };
+    }
+  }
+
+  // الحصول على سعر رحلة واحدة (للاستخدام في Cron Job)
+  static async getFlightPrice(origin, destination, date) {
+    try {
+      const response = await amadeus.shopping.flightOffersSearch.get({
+        originLocationCode: origin,
+        destinationLocationCode: destination,
+        departureDate: date,
+        adults: '1',
+        currencyCode: 'SAR',
+        max: '5'
+      });
+
+      if (!response.data || response.data.length === 0) {
+        return null;
+      }
+
+      const prices = response.data.map(offer => ({
+        price: parseFloat(offer.price.total),
+        airline: offer.validatingAirlineCodes[0],
+        currency: offer.price.currency
+      }));
+
+      prices.sort((a, b) => a.price - b.price);
+      
+      return {
+        price: prices[0].price,
+        airline: this.getAirlineName(prices[0].airline),
+        allPrices: prices
+      };
+
+    } catch (error) {
+      console.error('❌ getFlightPrice Error:', error.message);
+      return null;
+    }
+  }
+
+  // تحويل كود شركة الطيران إلى اسم عربي
+  static getAirlineName(code) {
+    const airlines = {
+      'XY': 'طيران ناس',
+      'F3': 'طيران أديل',
+      'SV': 'الخطوط السعودية',
+      'G9': 'طيران العربية',
+      'FZ': 'فلاي دبي',
+      'QR': 'القطرية',
+      'EK': 'طيران الإمارات',
+      'MS': 'مصر للطيران',
+      'RJ': 'الملكية الأردنية'
+    };
+    return airlines[code] || code;
+  }
+
+  // الحصول على رابط الحجز
+  static getBookingLink(airlineCode) {
+    const links = {
+      'XY': 'https://www.flynas.com',
+      'F3': 'https://www.flyadeal.com',
+      'SV': 'https://www.saudia.com',
+      'G9': 'https://www.airarabia.com',
+      'FZ': 'https://www.flydubai.com',
+      'QR': 'https://www.qatarairways.com',
+      'EK': 'https://www.emirates.com',
+      'MS': 'https://www.egyptair.com',
+      'RJ': 'https://www.rj.com'
+    };
+    return links[airlineCode] || 'https://www.google.com/flights';
+  }
+
+  // اختبار الاتصال بـ API
+  static async testConnection() {
+    try {
+      console.log('🔑 Testing Amadeus API connection...');
+      
+      const response = await amadeus.shopping.flightOffersSearch.get({
+        originLocationCode: 'RUH',
+        destinationLocationCode: 'JED',
+        departureDate: '2026-02-15',
+        adults: '1',
+        max: '1'
+      });
+
+      console.log('✅ Connection successful!');
+      return {
+        success: true,
+        message: 'الاتصال بـ Amadeus API ناجح',
+        sampleData: response.data[0] ? 'تم العثور على بيانات' : 'لا توجد بيانات'
+      };
+
+    } catch (error) {
+      console.error('❌ Connection test failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        details: error.description || 'تحقق من API Keys'
+      };
+    }
+  }
+}
+
+module.exports = AmadeusService;
