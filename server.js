@@ -4,6 +4,7 @@ require('dotenv').config();
 
 const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
+const predictionRoutes = require('./routes/predictionRoutes');
 const AmadeusService = require('./services/amadeusService');
 
 const app = express();
@@ -19,6 +20,7 @@ app.use(express.json());
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/prediction', predictionRoutes);
 
 // Health check
 app.get('/', (req, res) => {
@@ -104,5 +106,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
