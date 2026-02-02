@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const { scheduleTask } = require('./cron/priceChecker');
 const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 const predictionRoutes = require('./routes/predictionRoutes');
@@ -21,6 +22,7 @@ app.use(express.json());
 app.use('/api/users', userRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/prediction', predictionRoutes);
+scheduleTask();
 
 // Health check
 app.get('/', (req, res) => {
@@ -106,6 +108,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
 
