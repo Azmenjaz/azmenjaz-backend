@@ -5,6 +5,7 @@ const User = require('../models/User');
 const AmadeusService = require('../services/amadeusService');
 const { analyzePriceChange } = require('../utils/priceAnalyzer');
 const { sendPriceAlert } = require('../services/notificationService');
+const priceService = require('../services/priceHistoryService');
 
 // جدولة: كل 12 ساعة (8 صباحاً و 8 مساءً)
 const scheduleTask = () => {
