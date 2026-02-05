@@ -256,7 +256,7 @@ router.post('/test-whatsapp', async (req, res) => {
       price: 299,
       recommendation: {
         action: 'test',
-        message: '🧪 هذه رسالة اختبار من أزمنجاز!'
+        message: '🧪 هذه رسالة اختبار من سفر سمارت!'
       }
     });
 
