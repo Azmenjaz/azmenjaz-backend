@@ -26,6 +26,12 @@ async function sendPriceAlert(data) {
       'AHB': 'أبها',
       'TIF': 'الطائف',
       'MED': 'المدينة المنورة'
+      'TUU': 'تبوك',
+      'AJF': 'الجوف',
+      'YNB': 'ينبع',
+      'GIZ': 'جازان',
+      'ELQ': 'القصيم',
+      'HAS': 'حائل'
     };
 
     const fromCityName = cityNames[fromCity] || fromCity;
