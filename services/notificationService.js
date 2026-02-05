@@ -25,13 +25,13 @@ async function sendPriceAlert(data) {
       'DMM': 'الدمام',
       'AHB': 'أبها',
       'TIF': 'الطائف',
-      'MED': 'المدينة المنورة'
+      'MED': 'المدينة المنورة',
       'TUU': 'تبوك',
       'AJF': 'الجوف',
       'YNB': 'ينبع',
       'GIZ': 'جازان',
       'ELQ': 'القصيم',
-      'HAS': 'حائل'
+      'HAS': 'حائل',
     };
 
     const fromCityName = cityNames[fromCity] || fromCity;
