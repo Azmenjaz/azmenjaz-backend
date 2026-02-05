@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: ['https://azmenjaz.com', 'http://localhost:3000'],
+  origin: ['https://safarsmart.com', 'http://localhost:3000'],
   credentials: true
 }));
 app.use(express.json());
@@ -27,7 +27,7 @@ scheduleTask();
 // Health check
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Azmenjaz API Running',
+    message: 'Safar Smart API Running',
     version: '1.0.0',
     timestamp: new Date().toISOString()
   });
@@ -108,6 +108,7 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
 
 
 
