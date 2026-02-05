@@ -32,7 +32,7 @@ async function sendPriceAlert(data) {
     const toCityName = cityNames[toCity] || toCity;
 
     const message = `
-🛫 *أزمنجاز - تنبيه سعر*
+🛫 سفر سمارت - تنبيه سعر*
 
 مرحباً ${userName} 👋
 
@@ -43,7 +43,7 @@ async function sendPriceAlert(data) {
 
 ${recommendation.message}
 
-🔗 احجز الآن: https://azmenjaz.com
+🔗 احجز الآن: https://safarsmart.com
 `.trim();
 
     // إذا Ultramsg مفعّل
