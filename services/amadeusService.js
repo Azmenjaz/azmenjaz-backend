@@ -132,7 +132,7 @@ class AmadeusService {
       console.log('🔍 Searching cities/airports with keyword:', keyword);
       const response = await amadeus.referenceData.locations.get({
         keyword: keyword,
-        subType: Amadeus.location.any
+        subType: 'CITY,AIRPORT'
       });
       return {
         success: true,
@@ -141,13 +141,13 @@ class AmadeusService {
           detailedName: loc.detailedName,
           iataCode: loc.iataCode,
           subType: loc.subType,
-          cityName: loc.address.cityName,
-          countryName: loc.address.countryName
+          cityName: loc.address ? loc.address.cityName : '',
+          countryName: loc.address ? loc.address.countryName : ''
         }))
       };
     } catch (error) {
-      console.error('❌ searchCities Error:', error.message);
-      return { success: false, error: error.message };
+      console.error('❌ searchCities Error:', error.message || error);
+      return { success: false, error: error.message || 'Location search failed' };
     }
   }
 
@@ -160,14 +160,18 @@ class AmadeusService {
         airportCode: airportCode,
         date: today
       });
+
+      if (!response.data) {
+        return { success: false, error: 'No data returned' };
+      }
+
       return {
         success: true,
         probability: response.data.probability,
         result: response.data.result
       };
     } catch (error) {
-      console.error('❌ getAirportPerformance Error:', error.message);
-      // قد لا يكون متاحاً لجميع المطارات في بيئة الـ Test
+      console.error('❌ getAirportPerformance Error:', error.message || error);
       return { success: false, error: 'Data not available for this airport' };
     }
   }
