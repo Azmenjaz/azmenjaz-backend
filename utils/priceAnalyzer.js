@@ -1,4 +1,5 @@
 const Price = require('../models/Price');
+const priceService = require('../services/priceHistoryService');
 
 async function analyzePriceChange(alert, currentPrice) {
   const origin = alert.from_city;
