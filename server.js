@@ -26,8 +26,8 @@ scheduleTask();
 
 // Health check
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Safar Smart API Running',
+  res.json({
+    message: 'Azmenjaz API Running',
     version: '1.0.0',
     timestamp: new Date().toISOString()
   });
@@ -93,6 +93,30 @@ app.post('/api/flights/price', async (req, res) => {
   }
 });
 
+// Search locations/cities
+app.get('/api/locations/search', async (req, res) => {
+  try {
+    const { keyword } = req.query;
+    if (!keyword) return res.status(400).json({ success: false, error: 'Keyword is required' });
+    const result = await AmadeusService.searchCities(keyword);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get airport performance
+app.get('/api/airports/performance', async (req, res) => {
+  try {
+    const { airportCode } = req.query;
+    if (!airportCode) return res.status(400).json({ success: false, error: 'Airport code is required' });
+    const result = await AmadeusService.getAirportPerformance(airportCode);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
@@ -108,7 +132,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
-
 
 
 
