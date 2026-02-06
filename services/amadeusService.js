@@ -161,7 +161,7 @@ class AmadeusService {
         date: today
       });
 
-      if (!response.data) {
+      if (!response || !response.data) {
         return { success: false, error: 'No data returned' };
       }
 
@@ -171,7 +171,8 @@ class AmadeusService {
         result: response.data.result
       };
     } catch (error) {
-      console.error('❌ getAirportPerformance Error:', error.message || error);
+      // التعامل السلس مع أخطاء الـ API (مثل عدم توفر المطار في بيئة التجربة)
+      console.warn(`⚠️ Airport Performance not available for ${airportCode}:`, error.code || error.message || 'ClientError');
       return { success: false, error: 'Data not available for this airport' };
     }
   }
