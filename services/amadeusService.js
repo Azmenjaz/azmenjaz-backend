@@ -56,7 +56,7 @@ class AmadeusService {
 
     } catch (error) {
       console.error('❌ Amadeus API Error:', error);
-      
+
       // معالجة الأخطاء المختلفة
       if (error.response) {
         console.error('Error response:', error.response.data);
@@ -97,7 +97,7 @@ class AmadeusService {
       }));
 
       prices.sort((a, b) => a.price - b.price);
-      
+
       return {
         price: prices[0].price,
         airline: this.getAirlineName(prices[0].airline),
@@ -126,6 +126,52 @@ class AmadeusService {
     return airlines[code] || code;
   }
 
+  // البحث عن المدن والمطارات (Autocomplete)
+  static async searchCities(keyword) {
+    try {
+      console.log('🔍 Searching cities/airports with keyword:', keyword);
+      const response = await amadeus.referenceData.locations.get({
+        keyword: keyword,
+        subType: Amadeus.location.any
+      });
+      return {
+        success: true,
+        data: response.data.map(loc => ({
+          name: loc.name,
+          detailedName: loc.detailedName,
+          iataCode: loc.iataCode,
+          subType: loc.subType,
+          cityName: loc.address.cityName,
+          countryName: loc.address.countryName
+        }))
+      };
+    } catch (error) {
+      console.error('❌ searchCities Error:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // الحصول على توقعات دقة مواعيد المطار
+  static async getAirportPerformance(airportCode) {
+    try {
+      console.log('📊 Getting performance for airport:', airportCode);
+      const today = new Date().toISOString().split('T')[0];
+      const response = await amadeus.airport.predictions.onTime.get({
+        airportCode: airportCode,
+        date: today
+      });
+      return {
+        success: true,
+        probability: response.data.probability,
+        result: response.data.result
+      };
+    } catch (error) {
+      console.error('❌ getAirportPerformance Error:', error.message);
+      // قد لا يكون متاحاً لجميع المطارات في بيئة الـ Test
+      return { success: false, error: 'Data not available for this airport' };
+    }
+  }
+
   // الحصول على رابط الحجز
   static getBookingLink(airlineCode) {
     const links = {
@@ -146,7 +192,7 @@ class AmadeusService {
   static async testConnection() {
     try {
       console.log('🔑 Testing Amadeus API connection...');
-      
+
       const response = await amadeus.shopping.flightOffersSearch.get({
         originLocationCode: 'RUH',
         destinationLocationCode: 'JED',
