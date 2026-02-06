@@ -7,7 +7,7 @@ const router = express.Router()
 const priceService = require('../services/priceHistoryService')
 
 // توقع السعر
-router.get('/price', (req, res) => {
+router.get('/price', async (req, res) => {
   try {
     const { origin, destination, currentPrice, departureDate } = req.query
 
@@ -18,7 +18,7 @@ router.get('/price', (req, res) => {
       })
     }
 
-    const prediction = priceService.predictPrice(
+    const prediction = await priceService.predictPrice(
       origin,
       destination,
       parseFloat(currentPrice),
@@ -39,9 +39,9 @@ router.get('/price', (req, res) => {
 })
 
 // إضافة سعر
-router.post('/add-price', (req, res) => {
+router.post('/add-price', async (req, res) => {
   try {
-    const { origin, destination, price, date } = req.body
+    const { origin, destination, price, date, airline } = req.body
 
     if (!origin || !destination || !price) {
       return res.status(400).json({
@@ -50,16 +50,17 @@ router.post('/add-price', (req, res) => {
       })
     }
 
-    priceService.addPrice(
+    const success = await priceService.addPrice(
       origin,
       destination,
-      price,
-      date || new Date().toISOString().split('T')[0]
+      parseFloat(price),
+      date || new Date().toISOString().split('T')[0],
+      airline
     )
 
     res.json({
-      success: true,
-      message: 'Price added successfully'
+      success: success,
+      message: success ? 'Price added successfully' : 'Error adding price'
     })
   } catch (error) {
     console.error('Error adding price:', error)
@@ -71,18 +72,18 @@ router.post('/add-price', (req, res) => {
 })
 
 // الإحصائيات
-router.get('/statistics', (req, res) => {
+router.get('/statistics', async (req, res) => {
   try {
-    const { origin, destination } = req.query
+    const { origin, destination, travelDate } = req.query
 
-    if (!origin || !destination) {
+    if (!origin || !destination || !travelDate) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required parameters'
+        message: 'Missing required parameters (origin, destination, travelDate)'
       })
     }
 
-    const stats = priceService.getRouteStatistics(origin, destination)
+    const stats = await priceService.getRouteStatistics(origin, destination, travelDate)
 
     res.json({
       success: true,
