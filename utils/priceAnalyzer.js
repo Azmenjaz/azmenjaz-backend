@@ -1,55 +1,47 @@
 const Price = require('../models/Price');
 
 async function analyzePriceChange(alert, currentPrice) {
-  const route = `${alert.from_city}-${alert.to_city}`;
+  const origin = alert.from_city;
+  const destination = alert.to_city;
+  const travelDate = alert.travel_date;
 
   try {
-    const priceHistory = await Price.getHistory(route, alert.travel_date, 10);
+    // استخدام الخوارزمية المطورة للتحليل
+    const analysis = await priceService.predictPrice(origin, destination, currentPrice, travelDate);
 
-    if (priceHistory.length < 3) {
-      console.log(`ℹ️ بيانات تاريخية غير كافية للمسار ${route}`);
-      return false;
-    }
+    console.log(`📊 تحليل ${origin}-${destination}: الحالي=${currentPrice} المتوقع=${analysis.predictedPrice} التوصية=${analysis.recommendation}`);
 
-    const avgPrice = priceHistory.reduce((sum, p) => sum + parseFloat(p.price), 0) / priceHistory.length;
-    const minPrice = Math.min(...priceHistory.map(p => parseFloat(p.price)));
-
-    console.log(`📊 تحليل ${route}: الحالي=${currentPrice} المتوسط=${avgPrice.toFixed(2)} الأقل=${minPrice}`);
-
-    // السعر انخفض 15%+
-    if (currentPrice <= avgPrice * 0.85) {
-      const percentageDrop = Math.round(((avgPrice - currentPrice) / avgPrice) * 100);
-      return {
-        action: 'book_now',
-        urgency: 'high',
-        message: `🔥 السعر انخفض إلى ${currentPrice} ريال! أقل بـ ${percentageDrop}% من المتوسط. احجز الآن!`
-      };
-    }
-
-    // قريب من أقل سعر
-    if (currentPrice <= minPrice * 1.05) {
-      return {
-        action: 'book_now',
-        urgency: 'high',
-        message: `✨ السعر الآن ${currentPrice} ريال - قريب من أفضل سعر! فرصة ممتازة!`
-      };
-    }
-
-    // السعر مرتفع
-    if (currentPrice >= avgPrice * 1.25) {
-      return {
-        action: 'wait',
-        urgency: 'low',
-        message: `⏳ السعر حالياً ${currentPrice} ريال - أعلى من المعتاد. ننصح بالانتظار.`
-      };
-    }
-
-    // السعر المستهدف
+    // السعر المستهدف له أولوية
     if (alert.target_price && currentPrice <= alert.target_price) {
       return {
         action: 'target_reached',
         urgency: 'high',
-        message: `🎯 وصلنا للسعر المستهدف! الآن ${currentPrice} ريال`
+        message: `🎯 وصلنا للسعر المستهدف! الآن ${currentPrice} ريال. احجز فوراً!`
+      };
+    }
+
+    // بناء قرار التنبيه بناءً على توصية الخوارزمية
+    if (analysis.recommendation === 'BUY_NOW') {
+      let statusMsg = `✨ السعر الآن ${currentPrice} ريال. `;
+      if (analysis.analysis.isAtSupport) {
+        statusMsg += "هذا السعر في أدنى مستوياته التاريخية!";
+      } else {
+        statusMsg += `تتوقع الخوارزمية ارتفاع السعر إلى ${analysis.predictedPrice} ريال قريباً.`;
+      }
+
+      return {
+        action: 'book_now',
+        urgency: analysis.confidence > 70 ? 'high' : 'medium',
+        message: statusMsg
+      };
+    }
+
+    // تنبيه خاص بالانخفاض الكبير حتى لو لم تكن التوصية هي الشراء (مثلاً للانتظار أكثر)
+    if (analysis.priceChangePercent < -15) {
+      return {
+        action: 'price_drop',
+        urgency: 'medium',
+        message: `📉 انخفاض ملحوظ! السعر حالياً ${currentPrice} ريال. قد ينخفض أكثر، لكن السعر الحالي جيد.`
       };
     }
 
