@@ -34,17 +34,26 @@ class AmadeusService {
       }
 
       // معالجة البيانات
-      const flights = response.data.map(offer => ({
-        price: parseFloat(offer.price.total),
-        airline: this.getAirlineName(offer.validatingAirlineCodes[0]),
-        airlineCode: offer.validatingAirlineCodes[0],
-        currency: offer.price.currency,
-        segments: offer.itineraries[0].segments,
-        isDirect: offer.itineraries[0].segments.length === 1,
-        duration: offer.itineraries[0].duration,
-        departureTime: offer.itineraries[0].segments[0].departure.at,
-        arrivalTime: offer.itineraries[0].segments[offer.itineraries[0].segments.length - 1].arrival.at
-      }));
+      const flights = response.data.map(offer => {
+        // استخراج معلومات الشنط (Checked Bags)
+        const fareDetails = offer.travelerPricings[0].fareDetailsBySegment[0];
+        const baggage = fareDetails.includedCheckedBags;
+
+        return {
+          price: parseFloat(offer.price.total),
+          airline: this.getAirlineName(offer.validatingAirlineCodes[0]),
+          airlineCode: offer.validatingAirlineCodes[0],
+          currency: offer.price.currency,
+          segments: offer.itineraries[0].segments,
+          isDirect: offer.itineraries[0].segments.length === 1,
+          duration: offer.itineraries[0].duration,
+          departureTime: offer.itineraries[0].segments[0].departure.at,
+          arrivalTime: offer.itineraries[0].segments[offer.itineraries[0].segments.length - 1].arrival.at,
+          // إضافة معلومات الشنط
+          baggage: baggage ? (baggage.quantity !== undefined ? baggage.quantity : (baggage.weight ? `${baggage.weight}${baggage.weightUnit}` : '0')) : '0',
+          cabin: fareDetails.cabin
+        };
+      });
 
       // ترتيب حسب السعر
       flights.sort((a, b) => a.price - b.price);
