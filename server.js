@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: ['https://safarsmart.com', 'http://localhost:3000'],
+  origin: ['https://azmenjaz.com', 'http://localhost:3000'],
   credentials: true
 }));
 app.use(express.json());
@@ -51,6 +51,10 @@ app.post('/api/flights/search', async (req, res) => {
 
     if (!originCode || !destinationCode || !departureDate) {
       return res.status(400).json({ success: false, error: 'Missing data' });
+    }
+
+    if (originCode.length !== 3 || destinationCode.length !== 3) {
+      return res.status(400).json({ success: false, error: 'Invalid city code (Must be 3 letters)' });
     }
 
     const result = await AmadeusService.searchFlights(originCode, destinationCode, departureDate);
@@ -105,6 +109,17 @@ app.get('/api/locations/search', async (req, res) => {
   }
 });
 
+// Analytics: Track "Book Now" clicks
+app.post('/api/analytics/click', (req, res) => {
+  const { airline, price, from, to } = req.body;
+  const timestamp = new Date().toISOString();
+
+  // Log to console (Visible in Railway Logs)
+  console.log(`[CLICK_TRACK] Link Clicked: ${airline} - Price: ${price} - Route: ${from}->${to} - Time: ${timestamp}`);
+
+  res.json({ success: true });
+});
+
 // Get airport performance
 app.get('/api/airports/performance', async (req, res) => {
   try {
@@ -132,7 +147,3 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
-
-
-
-
