@@ -225,12 +225,21 @@ class AmadeusService {
     }
   }
 
-  // الحصول على رابط الحجز
-  static getBookingLink(airlineCode) {
+  // الحصول على رابط الحجز الذكي (Deep Link)
+  static getBookingLink(airlineCode, origin, destination, date) {
+    // تنسيق التاريخ ليتناسب مع أغلب المواقع (YYYY-MM-DD)
+    const formattedDate = date;
+
     const links = {
-      'XY': 'https://www.flynas.com',
-      'F3': 'https://www.flyadeal.com',
-      'SV': 'https://www.saudia.com',
+      // طيران ناس - رابط بحث مباشر
+      'XY': `https://www.flynas.com/ar/booking/flights?origin=${origin}&destination=${destination}&departure=${formattedDate}&adults=1&currency=SAR`,
+
+      // طيران أديل - رابط بحث مباشر
+      'F3': `https://www.flyadeal.com/ar/booking/select?origin=${origin}&destination=${destination}&departureDate=${formattedDate}&adults=1&currency=SAR`,
+
+      // الخطوط السعودية - رابط الصفحة الرئيسية أو البحث إذا توفر نمط ثابت
+      'SV': `https://www.saudia.com/ar/reserve-my-trip?origin=${origin}&destination=${destination}&departureDate=${formattedDate}`,
+
       'G9': 'https://www.airarabia.com',
       'FZ': 'https://www.flydubai.com',
       'QR': 'https://www.qatarairways.com',
@@ -238,7 +247,11 @@ class AmadeusService {
       'MS': 'https://www.egyptair.com',
       'RJ': 'https://www.rj.com'
     };
-    return links[airlineCode] || 'https://www.google.com/flights';
+
+    // إذا لم تكن الشركة معروفة، نرسل العميل لبحث جوجل للرحلات مع تعبئة البيانات
+    const googleFlightsFallback = `https://www.google.com/flights?hl=ar#flt=${origin}.${destination}.${formattedDate};currentLang=ar`;
+
+    return links[airlineCode] || googleFlightsFallback;
   }
 
   // اختبار الاتصال بـ API
