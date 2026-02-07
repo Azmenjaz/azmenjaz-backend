@@ -65,7 +65,7 @@ app.post('/api/flights/search', async (req, res) => {
 
     const flights = result.flights.map(flight => ({
       ...flight,
-      bookingLink: AmadeusService.getBookingLink(flight.airlineCode)
+      bookingLink: AmadeusService.getBookingLink(flight.airlineCode, originCode, destinationCode, departureDate)
     }));
 
     res.json({ success: true, flights: flights, count: flights.length });
