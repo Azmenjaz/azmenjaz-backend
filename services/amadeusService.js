@@ -129,9 +129,48 @@ class AmadeusService {
   // البحث عن المدن والمطارات (Autocomplete)
   static async searchCities(keyword) {
     try {
-      console.log('🔍 Searching cities/airports with keyword:', keyword);
+      // Manual mapping for common Arabic city names
+      const arabicMap = {
+        'الرياض': 'RUH',
+        'جدة': 'JED',
+        'الدمام': 'DMM',
+        'المدينة': 'MED',
+        'مكة': 'JED', // Mecca serves via Jeddah
+        'ابها': 'AHB',
+        'أبها': 'AHB',
+        'الطائف': 'TIF',
+        'جازان': 'GIZ',
+        'تبوك': 'TUU',
+        'القصيم': 'ELQ',
+        'بريدة': 'ELQ',
+        'حائل': 'HAS',
+        'نجران': 'EAM',
+        'ينبع': 'YNB',
+        'القاهرة': 'CAI',
+        'دبي': 'DXB',
+        'لندن': 'LHR',
+        'باريس': 'CDG',
+        'إسطنبول': 'IST',
+        'اسطنبول': 'IST',
+        'مدريد': 'MAD',
+        'برشلونة': 'BCN'
+      };
+
+      // Check if keyword is Arabic and mapped
+      let searchKeyword = keyword;
+      if (arabicMap[keyword]) {
+        searchKeyword = arabicMap[keyword];
+      } else {
+        // Try partial match if direct match fails
+        const partialKey = Object.keys(arabicMap).find(key => key.includes(keyword));
+        if (partialKey) {
+          searchKeyword = arabicMap[partialKey];
+        }
+      }
+
+      console.log('🔍 Searching cities/airports with keyword:', searchKeyword);
       const response = await amadeus.referenceData.locations.get({
-        keyword: keyword,
+        keyword: searchKeyword,
         subType: 'CITY,AIRPORT'
       });
       return {
