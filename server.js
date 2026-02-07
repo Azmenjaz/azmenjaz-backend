@@ -7,6 +7,7 @@ const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 const predictionRoutes = require('./routes/predictionRoutes');
 const AmadeusService = require('./services/amadeusService');
+const priceHistoryService = require('./services/priceHistoryService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,10 +54,6 @@ app.post('/api/flights/search', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing data' });
     }
 
-    if (originCode.length !== 3 || destinationCode.length !== 3) {
-      return res.status(400).json({ success: false, error: 'Invalid city code (Must be 3 letters)' });
-    }
-
     const result = await AmadeusService.searchFlights(originCode, destinationCode, departureDate);
 
     if (!result.success) {
@@ -68,7 +65,45 @@ app.post('/api/flights/search', async (req, res) => {
       bookingLink: AmadeusService.getBookingLink(flight.airlineCode)
     }));
 
-    res.json({ success: true, flights: flights, count: flights.length });
+    // --- REAL INTELLIGENCE START ---
+    let prediction = null;
+    if (flights.length > 0) {
+      const cheapestPrice = flights[0].price;
+      const airline = flights[0].airline;
+
+      // 1. Save to history (non-blocking)
+      priceHistoryService.addPrice(originCode, destinationCode, cheapestPrice, departureDate, airline)
+        .catch(err => console.error('Error saving history:', err));
+
+      // 2. Get Smart Prediction based on history
+      try {
+        const smartPrediction = await priceHistoryService.predictPrice(
+          originCode,
+          destinationCode,
+          cheapestPrice,
+          departureDate
+        );
+
+        // Convert backend prediction to frontend format
+        prediction = {
+          trend: smartPrediction.recommendation === 'WAIT' ? 'down' : 'up',
+          title: smartPrediction.recommendation === 'WAIT' ? '⏳ انتظر قليلاً' : '🚀 صفقة رائعة!',
+          message: smartPrediction.bestDayToBuy,
+          confidence: smartPrediction.confidence,
+          details: smartPrediction // Pass full object for future UI use
+        };
+      } catch (err) {
+        console.error('Prediction error:', err);
+      }
+    }
+    // --- REAL INTELLIGENCE END ---
+
+    res.json({
+      success: true,
+      flights: flights,
+      count: flights.length,
+      prediction: prediction
+    });
 
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -109,8 +144,6 @@ app.get('/api/locations/search', async (req, res) => {
   }
 });
 
-
-
 // Get airport performance
 app.get('/api/airports/performance', async (req, res) => {
   try {
@@ -138,7 +171,3 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
-
-
-
-
