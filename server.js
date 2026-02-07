@@ -109,16 +109,7 @@ app.get('/api/locations/search', async (req, res) => {
   }
 });
 
-// Analytics: Track "Book Now" clicks
-app.post('/api/analytics/click', (req, res) => {
-  const { airline, price, from, to } = req.body;
-  const timestamp = new Date().toISOString();
 
-  // Log to console (Visible in Railway Logs)
-  console.log(`[CLICK_TRACK] Link Clicked: ${airline} - Price: ${price} - Route: ${from}->${to} - Time: ${timestamp}`);
-
-  res.json({ success: true });
-});
 
 // Get airport performance
 app.get('/api/airports/performance', async (req, res) => {
