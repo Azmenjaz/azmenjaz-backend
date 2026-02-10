@@ -24,4 +24,36 @@ router.post('/search', async (req, res) => {
     }
 });
 
+// قائمة الفنادق في مدينة
+router.get('/list/:cityCode', async (req, res) => {
+    try {
+        const { cityCode } = req.params;
+        const result = await HotelService.getHotelList(cityCode);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// إكمال اسم الفندق تلقائياً
+router.get('/autocomplete', async (req, res) => {
+    try {
+        const { keyword } = req.query;
+        const result = await HotelService.autocompleteHotels(keyword);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// حجز فندق
+router.post('/book', async (req, res) => {
+    try {
+        const result = await HotelService.bookHotel(req.body);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 module.exports = router;
