@@ -114,6 +114,83 @@ class HotelService {
             return { success: false, error: error.message };
         }
     }
+
+    /**
+     * Get a simple list of hotels in a city (no prices/availability)
+     */
+    static async getHotelList(cityCode) {
+        if (!amadeus) return { success: false, error: 'Amadeus keys missing' };
+
+        try {
+            console.log(`🏨 Fetching hotel list for: ${cityCode}`);
+            const response = await amadeus.referenceData.locations.hotels.byCity.get({
+                cityCode: cityCode
+            });
+
+            return {
+                success: true,
+                hotels: response.data.map(hotel => ({
+                    id: hotel.hotelId,
+                    name: hotel.name,
+                    iataCode: hotel.iataCode,
+                    latitude: hotel.geoCode ? hotel.geoCode.latitude : null,
+                    longitude: hotel.geoCode ? hotel.geoCode.longitude : null,
+                    chainCode: hotel.chainCode
+                }))
+            };
+        } catch (error) {
+            console.error('❌ Hotel List Error:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Autocomplete hotel names (Search by keyword)
+     */
+    static async autocompleteHotels(keyword) {
+        if (!amadeus) return { success: false, error: 'Amadeus keys missing' };
+
+        try {
+            console.log(`🔍 Autocomplete hotels for: ${keyword}`);
+            const response = await amadeus.referenceData.locations.get({
+                keyword: keyword,
+                subType: 'HOTEL_GDS'
+            });
+
+            return {
+                success: true,
+                data: response.data.map(loc => ({
+                    name: loc.name,
+                    hotelId: loc.hotelId,
+                    iataCode: loc.iataCode,
+                    cityName: loc.address ? loc.address.cityName : ''
+                }))
+            };
+        } catch (error) {
+            console.error('❌ Hotel Autocomplete Error:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Book a hotel (Mock implementation for test environment)
+     */
+    static async bookHotel(bookingParams) {
+        if (!amadeus) return { success: false, error: 'Amadeus keys missing' };
+
+        try {
+            console.log(`🛎️ Booking hotel:`, bookingParams);
+            return {
+                success: true,
+                bookingReference: `HTL-${Math.floor(Math.random() * 900000) + 100000}`,
+                status: 'confirmed',
+                details: bookingParams
+            };
+        } catch (error) {
+            console.error('❌ Hotel Booking Error:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 module.exports = HotelService;
