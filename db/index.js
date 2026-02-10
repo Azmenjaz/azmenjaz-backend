@@ -54,6 +54,31 @@ async function getPassengersByBooking(bookingId) {
     return await db.select().from(schema.passengers).where(eq(schema.passengers.bookingId, bookingId));
 }
 
+async function getCompanyByEmail(email) {
+    const result = await db.select().from(schema.companies).where(eq(schema.companies.email, email)).limit(1);
+    return result[0];
+}
+
+async function createCompany(data) {
+    return await db.insert(schema.companies).values(data).returning();
+}
+
+async function getCompanyStats(companyId) {
+    const flights = await db.select().from(schema.flightBookings).where(eq(schema.flightBookings.companyId, companyId));
+    const hotels = await db.select().from(schema.hotelBookings).where(eq(schema.hotelBookings.companyId, companyId));
+    const visas = await db.select().from(schema.visaRequests).where(eq(schema.visaRequests.companyId, companyId));
+
+    const totalSpending = flights.reduce((sum, b) => sum + parseFloat(b.totalPrice || 0), 0) +
+        hotels.reduce((sum, b) => sum + parseFloat(b.totalPrice || 0), 0);
+
+    return {
+        flights: flights.length,
+        hotels: hotels.length,
+        visas: visas.length,
+        totalSpending: totalSpending
+    };
+}
+
 async function createPassenger(data) {
     return await db.insert(schema.passengers).values(data).returning();
 }
@@ -62,6 +87,9 @@ module.exports = {
     db,
     ...schema,
     getCompanyById,
+    getCompanyByEmail,
+    createCompany,
+    getCompanyStats,
     getFlightBookingsByCompany,
     getHotelBookingsByCompany,
     getVisaRequestsByCompany,

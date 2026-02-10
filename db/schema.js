@@ -19,6 +19,7 @@ const companies = pgTable("companies", {
     id: serial("id").primaryKey(),
     name: varchar("name", { length: 255 }).notNull(),
     email: varchar("email", { length: 320 }).notNull().unique(),
+    password: text("password").notNull(), // Added for corporate login
     phone: varchar("phone", { length: 20 }),
     address: text("address"),
     city: varchar("city", { length: 100 }),
