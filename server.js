@@ -6,8 +6,10 @@ const { scheduleTask } = require('./cron/priceChecker');
 const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
 const predictionRoutes = require('./routes/predictionRoutes');
+const corporateRoutes = require('./routes/corporateRoutes');
 const AmadeusService = require('./services/amadeusService');
 const priceHistoryService = require('./services/priceHistoryService');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,10 +21,23 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Serving static frontend files
+app.use(express.static(path.join(__dirname, '../frontend')));
+
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/prediction', predictionRoutes);
+app.use('/api/corporate', corporateRoutes);
+
+// Serve the React Portal (Make sure to run 'npm run build' in frontend/portal first)
+app.use('/portal', express.static(path.join(__dirname, '../frontend/dist/portal')));
+
+// Handle React Portal routing - return index.html for all /portal/* routes
+app.get('/portal/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist/portal/index.html'));
+});
+
 scheduleTask();
 
 // Health check

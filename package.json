@@ -5,9 +5,14 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "build": "cd ../frontend/portal && npm install && npm run build"
   },
-  "keywords": ["flight", "prices", "alerts"],
+  "keywords": [
+    "flight",
+    "prices",
+    "alerts"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -17,7 +22,9 @@
     "dotenv": "^16.3.1",
     "amadeus": "^10.0.0",
     "axios": "^1.6.2",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "drizzle-orm": "^0.29.3",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
