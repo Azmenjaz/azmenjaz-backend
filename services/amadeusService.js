@@ -1,11 +1,17 @@
 const Amadeus = require('amadeus');
 require('dotenv').config();
 
-const amadeus = new Amadeus({
-  clientId: process.env.AMADEUS_CLIENT_ID,
-  clientSecret: process.env.AMADEUS_CLIENT_SECRET,
-  hostname: 'test'
-});
+const amadeus = (process.env.AMADEUS_CLIENT_ID && process.env.AMADEUS_CLIENT_SECRET)
+  ? new Amadeus({
+    clientId: process.env.AMADEUS_CLIENT_ID,
+    clientSecret: process.env.AMADEUS_CLIENT_SECRET,
+    hostname: 'test'
+  })
+  : null;
+
+if (!amadeus) {
+  console.warn('⚠️ Amadeus API keys are missing. Flight search will not work.');
+}
 
 class AmadeusService {
   // البحث عن الرحلات (للاستخدام في الموقع)

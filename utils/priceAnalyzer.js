@@ -24,11 +24,7 @@ async function analyzePriceChange(alert, currentPrice) {
     // بناء قرار التنبيه بناءً على توصية الخوارزمية
     if (analysis.recommendation === 'BUY_NOW') {
       let statusMsg = `✨ السعر الآن ${currentPrice} ريال. `;
-      if (analysis.analysis.isAtSupport) {
-        statusMsg += "هذا السعر في أدنى مستوياته التاريخية!";
-      } else {
-        statusMsg += `تتوقع الخوارزمية ارتفاع السعر إلى ${analysis.predictedPrice} ريال قريباً.`;
-      }
+      statusMsg += `تتوقع الخوارزمية ارتفاع السعر إلى ${analysis.predictedPrice} ريال قريباً.`;
 
       return {
         action: 'book_now',
