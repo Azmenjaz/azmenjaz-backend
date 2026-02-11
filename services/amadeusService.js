@@ -14,20 +14,29 @@ if (!amadeus) {
 }
 
 class AmadeusService {
-  // البحث عن الرحلات (للاستخدام في الموقع)
-  static async searchFlights(origin, destination, date) {
+  static async searchFlights(origin, destination, date, returnDate = null, travelClass = null) {
     try {
-      console.log('🔍 Searching flights:', { origin, destination, date });
+      console.log('🔍 Searching flights:', { origin, destination, date, returnDate, travelClass });
 
-      const response = await amadeus.shopping.flightOffersSearch.get({
+      const searchParams = {
         originLocationCode: origin,
         destinationLocationCode: destination,
         departureDate: date,
         adults: '1',
         currencyCode: 'SAR',
-        max: '10',
+        max: '15',
         nonStop: 'false'
-      });
+      };
+
+      if (returnDate) {
+        searchParams.returnDate = returnDate;
+      }
+
+      if (travelClass && travelClass !== 'ECONOMY') {
+        searchParams.travelClass = travelClass;
+      }
+
+      const response = await amadeus.shopping.flightOffersSearch.get(searchParams);
 
       console.log('✅ Amadeus API Response:', response.data.length, 'flights found');
 
@@ -41,24 +50,28 @@ class AmadeusService {
 
       // معالجة البيانات
       const flights = response.data.map(offer => {
-        // استخراج معلومات الشنط (Checked Bags)
+        // استخراج معلومات الشنط (Checked Bags) من أول قطعة في أول رحلة
         const fareDetails = offer.travelerPricings[0].fareDetailsBySegment[0];
         const baggage = fareDetails.includedCheckedBags;
 
-        return {
+        const processedFlight = {
+          id: offer.id,
           price: parseFloat(offer.price.total),
           airline: this.getAirlineName(offer.validatingAirlineCodes[0]),
           airlineCode: offer.validatingAirlineCodes[0],
           currency: offer.price.currency,
-          segments: offer.itineraries[0].segments,
-          isDirect: offer.itineraries[0].segments.length === 1,
-          duration: offer.itineraries[0].duration,
-          departureTime: offer.itineraries[0].segments[0].departure.at,
-          arrivalTime: offer.itineraries[0].segments[offer.itineraries[0].segments.length - 1].arrival.at,
-          // إضافة معلومات الشنط
+          itineraries: offer.itineraries.map(itinerary => ({
+            duration: itinerary.duration,
+            segments: itinerary.segments,
+            departure: itinerary.segments[0].departure,
+            arrival: itinerary.segments[itinerary.segments.length - 1].arrival,
+            isDirect: itinerary.segments.length === 1
+          })),
           baggage: baggage ? (baggage.quantity !== undefined ? baggage.quantity : (baggage.weight ? `${baggage.weight}${baggage.weightUnit}` : '0')) : '0',
-          cabin: fareDetails.cabin
+          cabin: travelClass || fareDetails.cabin
         };
+
+        return processedFlight;
       });
 
       // ترتيب حسب السعر

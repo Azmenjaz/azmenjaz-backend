@@ -64,13 +64,19 @@ app.get('/api/test-amadeus', async (req, res) => {
 // Search flights
 app.post('/api/flights/search', async (req, res) => {
   try {
-    const { originCode, destinationCode, departureDate } = req.body;
+    const { originCode, destinationCode, departureDate, returnDate, travelClass } = req.body;
 
     if (!originCode || !destinationCode || !departureDate) {
       return res.status(400).json({ success: false, error: 'Missing data' });
     }
 
-    const result = await AmadeusService.searchFlights(originCode, destinationCode, departureDate);
+    const result = await AmadeusService.searchFlights(
+      originCode,
+      destinationCode,
+      departureDate,
+      returnDate,
+      travelClass
+    );
 
     if (!result.success) {
       return res.status(500).json(result);
