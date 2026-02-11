@@ -1,22 +1,26 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const rawUrl = process.env.DATABASE_URL || '';
+// التحقق من المتغيرات المتاحة (Public أولاً لأنه الأكثر استقراراً في الكرون)
+const rawUrl = process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL || '';
 const connectionString = rawUrl.replace('postgresql://', 'postgres://');
 
-// التحقق من جودة الرابط
+// تشخيص الرابط المستخدم
 if (rawUrl) {
-  console.log(`📡 Database URL prefix: ${rawUrl.substring(0, 15)}...`);
+  const maskedUrl = rawUrl.split('@')[1] || rawUrl.substring(0, 20);
+  console.log(`📡 Attempting connection to: ${maskedUrl}`);
+} else {
+  console.error('❌ No Database URL found in environment variables!');
 }
 
 const pool = new Pool({
   connectionString,
-  ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: false
-  } : false,
-  max: 10, // تقليل العدد لتجنب قطع الاتصال
-  idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 5000,
+  ssl: {
+    rejectUnauthorized: false // مطلوب في أغلب استضافات السحاب مثل Railway للاتصال الخارجي
+  },
+  max: 5, // تقليل العدد لثبات الاتصال
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
 });
 
 pool.on('error', (err) => {
@@ -31,14 +35,16 @@ const testConnection = async (retries = 3) => {
       client.release();
       return;
     } catch (err) {
-      console.error(`⚠️ محاولة ${i + 1} فشلت:`, err.message);
+      console.error(`⚠️ محاولة ${i + 1} فشلت: ${err.message}`);
+
       if (err.message.includes('ECONNRESET')) {
-        console.error('💡 نصيحة: خطأ ECONNRESET غالباً يعني مشكلة في SSL أو أن الرابط غير كامل.');
+        console.error('💡 نصيحة: تم قطع الاتصال من السيرفر. تأكد أنك تستخدم DATABASE_PUBLIC_URL كاملاً.');
       }
+
       if (i === retries - 1) {
-        console.error('❌ فشل الاتصال النهائي. يرجى التأكد من Public Connection String.');
+        console.error('❌ فشل الاتصال النهائي. يرجى مراجعة إعدادات DATABASE_PUBLIC_URL في Railway.');
       } else {
-        await new Promise(res => setTimeout(res, 2000));
+        await new Promise(res => setTimeout(res, 3000)); // انتظر 3 ثوانٍ قبل المحاولة التالية
       }
     }
   }
