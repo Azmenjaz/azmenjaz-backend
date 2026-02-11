@@ -43,7 +43,8 @@ class PriceHistoryService {
 
       this.hydratedRoutes.add(hydrationKey)
     } catch (error) {
-      console.error(`❌ Hydration error for ${hydrationKey}:`, error.message)
+      // فشل صامت لتنظيف اللوجز
+      // console.error(`❌ Hydration error for ${hydrationKey}:`, error.message)
     }
   }
 
@@ -63,7 +64,8 @@ class PriceHistoryService {
 
       return true
     } catch (error) {
-      console.error('❌ Error adding price:', error.message)
+      // فشل صامت لتنظيف اللوجز
+      // console.error('❌ Error adding price:', error.message)
       return false
     }
   }
