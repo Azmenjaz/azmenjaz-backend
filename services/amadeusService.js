@@ -24,7 +24,7 @@ class AmadeusService {
         departureDate: date,
         adults: '1',
         currencyCode: 'SAR',
-        max: '15',
+        max: '60',
         nonStop: 'false'
       };
 
