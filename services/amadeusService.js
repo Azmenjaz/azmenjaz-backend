@@ -289,6 +289,65 @@ class AmadeusService {
       };
     }
   }
+  // تأكيد السعر (Pricing)
+  static async confirmPrice(flightOffer) {
+    try {
+      console.log('💰 Confirming price for offer:', flightOffer.id);
+      const response = await amadeus.shopping.flightOffers.pricing.post({
+        'data': {
+          'type': 'flight-offers-pricing',
+          'flightOffers': [flightOffer]
+        }
+      });
+
+      if (!response.data || !response.data.flightOffers || response.data.flightOffers.length === 0) {
+        throw new Error('لم يتم العثور على عرض ساري');
+      }
+
+      return {
+        success: true,
+        data: response.data.flightOffers[0]
+      };
+    } catch (error) {
+      console.error('❌ Price Confirmation Error:', error.response?.data?.errors || error.message);
+      return {
+        success: false,
+        error: 'فشل في تأكيد السعر',
+        details: error.response?.data?.errors
+      };
+    }
+  }
+
+  // إنشاء الحجز (Create Order)
+  static async createOrder(flightOffer, travelers) {
+    try {
+      console.log('📝 Creating order for travelers:', travelers.length);
+      const response = await amadeus.booking.flightOrders.post({
+        'data': {
+          'type': 'flight-order',
+          'flightOffers': [flightOffer],
+          'travelers': travelers
+        }
+      });
+
+      if (!response.data) {
+        throw new Error('لم يتم استلام رد صحيح من Amadeus');
+      }
+
+      return {
+        success: true,
+        data: response.data
+      };
+
+    } catch (error) {
+      console.error('❌ Create Order Error:', error.response?.data?.errors || error.message);
+      return {
+        success: false,
+        error: 'فشل في إنشاء الحجز',
+        details: error.response?.data?.errors
+      };
+    }
+  }
 }
 
 module.exports = AmadeusService;
