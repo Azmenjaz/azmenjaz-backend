@@ -98,6 +98,44 @@ app.post('/api/flights/search', async (req, res) => {
   }
 });
 
+// Confirm Price
+app.post('/api/flights/confirm-price', async (req, res) => {
+  try {
+    const { flightOffer } = req.body;
+    if (!flightOffer) {
+      return res.status(400).json({ success: false, error: 'Missing flight offer' });
+    }
+
+    const result = await AmadeusService.confirmPrice(flightOffer);
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Create Order (Book)
+app.post('/api/flights/book', async (req, res) => {
+  try {
+    const { flightOffer, travelers } = req.body;
+    if (!flightOffer || !travelers) {
+      return res.status(400).json({ success: false, error: 'Missing flight offer or travelers data' });
+    }
+
+    const result = await AmadeusService.createOrder(flightOffer, travelers);
+    if (!result.success) {
+      return res.status(500).json(result);
+    }
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get price
 app.post('/api/flights/price', async (req, res) => {
   try {
