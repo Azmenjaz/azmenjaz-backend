@@ -289,6 +289,41 @@ class AmadeusService {
       };
     }
   }
+  // البحث عن أرخص الوجهات (Inspiration Search)
+  static async getCheapestDestinations(origin) {
+    try {
+      console.log('🌍 Getting cheapest destinations from:', origin);
+      const response = await amadeus.shopping.flightDestinations.get({
+        origin: origin,
+        currency: 'SAR',
+        nonStop: false,
+        viewBy: 'COUNTRY' // Group by country for diverse results
+      });
+
+      if (!response.data || response.data.length === 0) {
+        return { success: true, data: [] };
+      }
+
+      const deals = response.data.map(item => ({
+        destination: item.destination,
+        price: parseFloat(item.price.total),
+        currency: 'SAR',
+        departureDate: item.departureDate,
+        returnDate: item.returnDate
+      }));
+
+      // Sort by price
+      deals.sort((a, b) => a.price - b.price);
+
+      return { success: true, data: deals };
+
+    } catch (error) {
+      console.error('❌ Inspiration Search Error:', error);
+      // Return empty array on error to strictly avoid breaking UI
+      return { success: true, data: [] };
+    }
+  }
+
   // تأكيد السعر (Pricing)
   static async confirmPrice(flightOffer) {
     try {

@@ -158,6 +158,25 @@ app.post('/api/flights/price', async (req, res) => {
   }
 });
 
+// Inspiration Search Endpoint
+app.get('/api/flights/inspiration', async (req, res) => {
+  const { origin } = req.query;
+  if (!origin) {
+    return res.status(400).json({ success: false, error: 'Origin is required' });
+  }
+
+  try {
+    const result = await AmadeusService.getCheapestDestinations(origin);
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Search locations/cities
 app.get('/api/locations/search', async (req, res) => {
   try {
