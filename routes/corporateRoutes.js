@@ -82,6 +82,13 @@ router.get('/dashboard', corporateAuth, async (req, res) => {
         const hotels = await db.getHotelBookingsByCompany(companyId);
         const visas = await db.getVisaRequestsByCompany(companyId);
 
+        // Sort all by date descending for "Recent Bookings"
+        const allBookings = [
+            ...flights.map(f => ({ ...f, type: 'flight' })),
+            ...hotels.map(h => ({ ...h, type: 'hotel' })),
+            ...visas.map(v => ({ ...v, type: 'visa' }))
+        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
         res.json({
             success: true,
             data: {
@@ -90,17 +97,14 @@ router.get('/dashboard', corporateAuth, async (req, res) => {
                     totalFlightBookings: flights.length,
                     totalHotelBookings: hotels.length,
                     totalVisaRequests: visas.length,
+                    totalSpending: await db.getCompanyStats(companyId).then(s => s.totalSpending),
                     pendingRequests: [
                         ...flights.filter(f => f.status === 'pending'),
                         ...hotels.filter(h => h.status === 'pending'),
                         ...visas.filter(v => v.status === 'pending'),
                     ].length,
                 },
-                recentBookings: {
-                    flights: flights.slice(0, 5),
-                    hotels: hotels.slice(0, 5),
-                    visas: visas.slice(0, 5),
-                },
+                recentBookings: allBookings.slice(0, 5),
             }
         });
     } catch (error) {
@@ -112,7 +116,7 @@ router.get('/dashboard', corporateAuth, async (req, res) => {
 router.get('/bookings/flights', corporateAuth, async (req, res) => {
     try {
         const flights = await db.getFlightBookingsByCompany(req.user.companyId);
-        res.json({ success: true, flights });
+        res.json({ success: true, bookings: flights });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
@@ -121,7 +125,7 @@ router.get('/bookings/flights', corporateAuth, async (req, res) => {
 router.get('/bookings/hotels', corporateAuth, async (req, res) => {
     try {
         const hotels = await db.getHotelBookingsByCompany(req.user.companyId);
-        res.json({ success: true, hotels });
+        res.json({ success: true, bookings: hotels });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
@@ -130,7 +134,7 @@ router.get('/bookings/hotels', corporateAuth, async (req, res) => {
 router.get('/bookings/visas', corporateAuth, async (req, res) => {
     try {
         const visas = await db.getVisaRequestsByCompany(req.user.companyId);
-        res.json({ success: true, visas });
+        res.json({ success: true, bookings: visas });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
@@ -140,7 +144,7 @@ router.get('/bookings/visas', corporateAuth, async (req, res) => {
 router.post('/bookings/flights', corporateAuth, async (req, res) => {
     try {
         const bookingRef = `FL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-        const booking = await db.createFlightBooking({
+        const [booking] = await db.createFlightBooking({
             ...req.body,
             companyId: req.user.companyId,
             bookingReference: bookingRef,
@@ -154,14 +158,36 @@ router.post('/bookings/flights', corporateAuth, async (req, res) => {
 
 router.post('/bookings/hotels', corporateAuth, async (req, res) => {
     try {
-        const bookingRef = `HT-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-        const booking = await db.createHotelBooking({
-            ...req.body,
+        const { hotelName, city, checkInDate, checkOutDate, rooms, guests, roomType, totalPrice, passengers } = req.body;
+        const bookingRef = `HTL-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+        const [booking] = await db.createHotelBooking({
+            hotelName,
+            city,
+            checkInDate,
+            checkOutDate,
+            rooms: rooms || 1,
+            guests: guests || 1,
+            roomType,
+            totalPrice,
             companyId: req.user.companyId,
             bookingReference: bookingRef,
-            status: 'pending'
+            status: 'confirmed' // Firing confirmation for mock
         });
-        res.status(201).json({ success: true, booking });
+
+        // Store passengers if provided
+        if (passengers && Array.isArray(passengers)) {
+            for (const p of passengers) {
+                await db.createPassenger({
+                    bookingId: booking.id,
+                    name: `${p.firstName} ${p.lastName}`,
+                    passportNumber: p.passportNumber || '',
+                    nationality: p.nationality || ''
+                });
+            }
+        }
+
+        res.status(201).json({ success: true, booking, bookingReference: bookingRef });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
