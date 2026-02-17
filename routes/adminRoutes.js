@@ -97,7 +97,16 @@ router.get('/stats', async (req, res) => {
     `);
 
     // إحصائيات النقرات
-    const clicksCount = await pool.query('SELECT COUNT(*) as count FROM booking_clicks');
+    const clicksResult = await pool.query(`
+      SELECT 
+        COUNT(*) as count, 
+        COALESCE(SUM(price), 0) as total_revenue 
+      FROM booking_clicks
+    `);
+
+    const clicksCount = clicksResult.rows[0].count;
+    const totalRevenue = clicksResult.rows[0].total_revenue;
+
     const recentClicks = await pool.query(`
       SELECT * FROM booking_clicks 
       ORDER BY click_timestamp DESC 
@@ -111,7 +120,8 @@ router.get('/stats', async (req, res) => {
         activeAlerts: parseInt(activeAlertsCount.rows[0].count),
         totalAlerts: parseInt(totalAlertsCount.rows[0].count),
         totalPrices: parseInt(pricesCount.rows[0].count),
-        totalClicks: parseInt(clicksCount.rows[0].count)
+        totalClicks: parseInt(clicksCount),
+        totalRevenue: parseFloat(totalRevenue)
       },
       recentAlerts: recentAlerts.rows,
       recentClicks: recentClicks.rows
