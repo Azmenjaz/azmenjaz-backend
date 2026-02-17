@@ -44,15 +44,50 @@ app.get('/portal/*', (req, res) => {
 scheduleTask();
 
 // Health check
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Azmenjaz API Running',
-    version: '1.0.0',
-    timestamp: new Date().toISOString()
-  });
+app.get('/api/health', async (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    services: {
+      database: { status: 'unknown' },
+      amadeus: { status: 'unknown' },
+      whatsapp: { status: 'unknown' }
+    }
+  };
+
+  // Check Database
+  try {
+    const pool = require('./config/database');
+    await pool.query('SELECT 1');
+    health.services.database.status = 'connected';
+  } catch (err) {
+    health.status = 'error';
+    health.services.database.status = 'disconnected';
+    health.services.database.error = err.message;
+  }
+
+  // Check Amadeus
+  try {
+    const amadeusResult = await AmadeusService.testConnection();
+    health.services.amadeus.status = amadeusResult.success ? 'connected' : 'error';
+    if (!amadeusResult.success) health.services.amadeus.error = amadeusResult.error;
+  } catch (err) {
+    health.services.amadeus.status = 'error';
+    health.services.amadeus.error = err.message;
+  }
+
+  // Check WhatsApp (Ultramsg)
+  if (process.env.ULTRAMSG_INSTANCE_ID && process.env.ULTRAMSG_TOKEN) {
+    health.services.whatsapp.status = 'configured';
+  } else {
+    health.services.whatsapp.status = 'not_configured (test mode)';
+  }
+
+  const statusCode = health.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
-// Test Amadeus
+// Test Amadeus (kept for compatibility)
 app.get('/api/test-amadeus', async (req, res) => {
   try {
     console.log('Testing Amadeus API...');
