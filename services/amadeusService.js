@@ -148,8 +148,37 @@ class AmadeusService {
       'FZ': 'فلاي دبي',
       'QR': 'القطرية',
       'EK': 'طيران الإمارات',
+      'EY': 'الاتحاد للطيران',
       'MS': 'مصر للطيران',
-      'RJ': 'الملكية الأردنية'
+      'RJ': 'الملكية الأردنية',
+      'GF': 'طيران الخليج',
+      'WY': 'الطيران العُماني',
+      'KU': 'الخطوط الكويتية',
+      'TK': 'الخطوط التركية',
+      'PC': 'بيجاسوس',
+      'LH': 'لوفتهانزا',
+      'BA': 'الخطوط البريطانية',
+      'AF': 'الخطوط الفرنسية',
+      'KL': 'كي إل إم',
+      'AZ': 'إيتا إيرويز',
+      'IB': 'إيبيريا',
+      'LX': 'سويس',
+      'OS': 'النمساوية',
+      'A3': 'إيجين إير',
+      'LO': 'لوت البولندية',
+      'TP': 'تاب البرتغالية',
+      'AY': 'فين إير',
+      'SQ': 'الخطوط السنغافورية',
+      'TG': 'الخطوط التايلاندية',
+      'MH': 'الخطوط الماليزية',
+      'CX': 'كاثي باسيفيك',
+      'GA': 'جارودا إندونيسيا',
+      'AI': 'الخطوط الهندية',
+      'PK': 'الخطوط الباكستانية',
+      'UL': 'سريلانكان',
+      'ME': 'طيران الشرق الأوسط',
+      'ET': 'الخطوط الإثيوبية',
+      'KQ': 'الخطوط الكينية'
     };
     return airlines[code] || code;
   }
@@ -305,9 +334,6 @@ class AmadeusService {
         'باكو': 'GYD',
         'تبليسي': 'TBS',
         'يريفان': 'EVN',
-        'طهران': 'IKA',
-        'مشهد': 'MHD',
-        'أصفهان': 'IFN'
       };
 
       // Check if keyword is Arabic and mapped
@@ -373,6 +399,7 @@ class AmadeusService {
   // الحصول على رابط الحجز
   static getBookingLink(airlineCode) {
     const links = {
+      // Saudi & Regional
       'XY': 'https://www.flynas.com',
       'F3': 'https://www.flyadeal.com',
       'SV': 'https://www.saudia.com',
@@ -380,8 +407,46 @@ class AmadeusService {
       'FZ': 'https://www.flydubai.com',
       'QR': 'https://www.qatarairways.com',
       'EK': 'https://www.emirates.com',
+      'EY': 'https://www.etihad.com',
       'MS': 'https://www.egyptair.com',
-      'RJ': 'https://www.rj.com'
+      'RJ': 'https://www.rj.com',
+      'GF': 'https://www.gulfair.com',
+      'WY': 'https://www.omanair.com',
+      'KU': 'https://www.kuwaitairways.com',
+      // Turkish
+      'TK': 'https://www.turkishairlines.com',
+      'PC': 'https://www.flypgs.com',
+      'XQ': 'https://www.sunexpress.com',
+      // European
+      'LH': 'https://www.lufthansa.com',
+      'BA': 'https://www.britishairways.com',
+      'AF': 'https://www.airfrance.com',
+      'KL': 'https://www.klm.com',
+      'AZ': 'https://www.ita-airways.com',
+      'IB': 'https://www.iberia.com',
+      'LX': 'https://www.swiss.com',
+      'OS': 'https://www.austrian.com',
+      'SK': 'https://www.flysas.com',
+      'A3': 'https://www.aegeanair.com',
+      'LO': 'https://www.lot.com',
+      'TP': 'https://www.flytap.com',
+      'AY': 'https://www.finnair.com',
+      'VF': 'https://www.aeroflot.com',
+      // Asian
+      'SQ': 'https://www.singaporeair.com',
+      'TG': 'https://www.thaiairways.com',
+      'MH': 'https://www.malaysiaairlines.com',
+      'CX': 'https://www.cathaypacific.com',
+      'GA': 'https://www.garuda-indonesia.com',
+      'AI': 'https://www.airindia.com',
+      'PK': 'https://www.piac.com.pk',
+      'UL': 'https://www.srilankan.com',
+      'PG': 'https://www.bangkokair.com',
+      'ME': 'https://www.mea.com.lb',
+      // African
+      'ET': 'https://www.ethiopianairlines.com',
+      'KQ': 'https://www.kenya-airways.com',
+      'SA': 'https://www.flysaa.com'
     };
     return links[airlineCode] || 'https://www.google.com/flights';
   }
