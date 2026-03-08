@@ -9,6 +9,7 @@ const predictionRoutes = require('./routes/predictionRoutes');
 const corporateRoutes = require('./routes/corporateRoutes');
 const hotelRoutes = require('./routes/hotelRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const tpRoutes = require('./routes/travelpayoutsRoutes');
 const AmadeusService = require('./services/amadeusService');
 const priceHistoryService = require('./services/priceHistoryService');
 const path = require('path');
@@ -32,6 +33,7 @@ app.use('/api/prediction', predictionRoutes);
 app.use('/api/corporate', corporateRoutes);
 app.use('/api/hotels', hotelRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/tp', tpRoutes);
 
 // Serve the React Portal (Make sure to run 'npm run build' in frontend/portal first)
 app.use('/portal', express.static(path.join(__dirname, '../frontend/dist/portal')));
