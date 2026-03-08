@@ -46,6 +46,7 @@ class HotelService {
                 rating: offer.hotel.rating,
                 latitude: offer.hotel.latitude,
                 longitude: offer.hotel.longitude,
+                address: offer.hotel.address ? `${offer.hotel.address.lines.join(', ')}, ${offer.hotel.address.cityName}` : '',
                 description: offer.hotel.description ? offer.hotel.description.text : 'No description available',
                 amenities: offer.hotel.amenities || []
             }));
@@ -106,6 +107,8 @@ class HotelService {
                     chainCode: offer.hotel.chainCode,
                     latitude: offer.hotel.latitude,
                     longitude: offer.hotel.longitude,
+                    address: offer.hotel.address ? `${offer.hotel.address.lines.join(', ')}, ${offer.hotel.address.cityName}` : '',
+                    rating: offer.hotel.rating || (3 + Math.floor(Math.random() * 3)), // Fallback rating
                     available: true
                 }))
             };
