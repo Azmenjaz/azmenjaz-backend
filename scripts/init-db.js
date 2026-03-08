@@ -9,7 +9,20 @@ async function init() {
     const db = drizzle(pool, { schema });
 
     const sql = `
-    CREATE TABLE IF NOT EXISTS "companies" (
+    CREATE TABLE IF NOT EXISTS "users"(
+        "id" serial PRIMARY KEY NOT NULL,
+        "openid" varchar(64) NOT NULL UNIQUE,
+        "name" text,
+        "email" varchar(320),
+        "login_method" varchar(64),
+        "role" varchar(20) DEFAULT 'user' NOT NULL,
+        "company_id" integer,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL,
+        "last_signed_in" timestamp DEFAULT now() NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS "companies"(
         "id" serial PRIMARY KEY NOT NULL,
         "name" varchar(255) NOT NULL,
         "email" varchar(320) NOT NULL UNIQUE,
@@ -26,7 +39,7 @@ async function init() {
         "updatedAt" timestamp DEFAULT now() NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS "flightBookings" (
+    CREATE TABLE IF NOT EXISTS "flightBookings"(
         "id" serial PRIMARY KEY NOT NULL,
         "companyId" integer NOT NULL,
         "bookingReference" varchar(50) NOT NULL UNIQUE,
@@ -42,7 +55,7 @@ async function init() {
         "updatedAt" timestamp DEFAULT now() NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS "hotelBookings" (
+    CREATE TABLE IF NOT EXISTS "hotelBookings"(
         "id" serial PRIMARY KEY NOT NULL,
         "companyId" integer NOT NULL,
         "bookingReference" varchar(50) NOT NULL UNIQUE,
@@ -59,7 +72,7 @@ async function init() {
         "updatedAt" timestamp DEFAULT now() NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS "visaRequests" (
+    CREATE TABLE IF NOT EXISTS "visaRequests"(
         "id" serial PRIMARY KEY NOT NULL,
         "companyId" integer NOT NULL,
         "requestReference" varchar(50) NOT NULL UNIQUE,
@@ -76,7 +89,7 @@ async function init() {
         "updatedAt" timestamp DEFAULT now() NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS "passengers" (
+    CREATE TABLE IF NOT EXISTS "passengers"(
         "id" serial PRIMARY KEY NOT NULL,
         "bookingId" integer NOT NULL,
         "name" varchar(255) NOT NULL,
@@ -86,7 +99,7 @@ async function init() {
         "gender" varchar(10),
         "createdAt" timestamp DEFAULT now() NOT NULL
     );
-  `;
+    `;
 
     try {
         await pool.query(sql);
