@@ -3,15 +3,15 @@ const { pgTable, serial, varchar, text, timestamp, integer, boolean, decimal, da
 // Core user table
 const users = pgTable("users", {
     id: serial("id").primaryKey(),
-    openId: varchar("openId", { length: 64 }).notNull().unique(),
+    openId: varchar("openid", { length: 64 }).notNull().unique(),
     name: text("name"),
     email: varchar("email", { length: 320 }),
-    loginMethod: varchar("loginMethod", { length: 64 }),
-    role: varchar("role", { length: 20 }).default("user").notNull(), // using varchar instead of enum for simplicity in JS
-    companyId: integer("companyId"),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-    lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+    loginMethod: varchar("login_method", { length: 64 }),
+    role: varchar("role", { length: 20 }).default("user").notNull(),
+    companyId: integer("company_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    lastSignedIn: timestamp("last_signed_in").defaultNow().notNull(),
 });
 
 // Companies table
