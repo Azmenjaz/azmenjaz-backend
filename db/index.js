@@ -1,7 +1,7 @@
 const { drizzle } = require('drizzle-orm/node-postgres');
 const pool = require('../config/database');
 const schema = require('./schema');
-const { eq, and } = require('drizzle-orm');
+const { eq } = require('drizzle-orm');
 
 const db = drizzle(pool, { schema });
 
@@ -86,15 +86,15 @@ async function createPassenger(data) {
 // Employee Management
 async function getEmployeesByCompany(companyId) {
     return await db.select().from(schema.users)
-        .where(and(
-            eq(schema.users.companyId, companyId),
-            eq(schema.users.role, 'employee')
-        ));
+        .where(eq(schema.users.companyId, companyId))
+        .where(eq(schema.users.role, 'employee'));
 }
 
 async function createEmployee(data) {
     return await db.insert(schema.users).values({
-        ...data,
+        name: data.name,
+        email: data.email,
+        companyId: data.companyId,
         role: 'employee',
         openId: 'emp_' + Math.random().toString(36).substring(2, 10),
         loginMethod: 'manual'
@@ -103,10 +103,8 @@ async function createEmployee(data) {
 
 async function deleteEmployee(id, companyId) {
     return await db.delete(schema.users)
-        .where(and(
-            eq(schema.users.id, id),
-            eq(schema.users.companyId, companyId)
-        ));
+        .where(eq(schema.users.id, id))
+        .where(eq(schema.users.companyId, companyId));
 }
 
 module.exports = {
