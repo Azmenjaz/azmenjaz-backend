@@ -81,6 +81,7 @@ router.get('/dashboard', corporateAuth, async (req, res) => {
         const flights = await db.getFlightBookingsByCompany(companyId);
         const hotels = await db.getHotelBookingsByCompany(companyId);
         const visas = await db.getVisaRequestsByCompany(companyId);
+        const employees = await db.getEmployeesByCompany(companyId);
 
         // Sort all by date descending for "Recent Bookings"
         const allBookings = [
@@ -89,16 +90,17 @@ router.get('/dashboard', corporateAuth, async (req, res) => {
             ...visas.map(v => ({ ...v, type: 'visa' }))
         ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+        const stats = await db.getCompanyStats(companyId);
+
         res.json({
             success: true,
             data: {
                 company,
                 stats: {
-                    totalFlightBookings: flights.length,
-                    totalHotelBookings: hotels.length,
-                    totalVisaRequests: visas.length,
-                    totalSpending: await db.getCompanyStats(companyId).then(s => s.totalSpending),
-                    pendingRequests: [
+                    totalEmployees: employees.length,
+                    totalSpend: stats.totalSpending,
+                    totalBookings: flights.length + hotels.length + visas.length,
+                    pendingInvoices: [
                         ...flights.filter(f => f.status === 'pending'),
                         ...hotels.filter(h => h.status === 'pending'),
                         ...visas.filter(v => v.status === 'pending'),
@@ -203,6 +205,40 @@ router.post('/bookings/visas', corporateAuth, async (req, res) => {
             status: 'pending'
         });
         res.status(201).json({ success: true, request });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Employee Management Routes
+router.get('/employees', corporateAuth, async (req, res) => {
+    try {
+        const employees = await db.getEmployeesByCompany(req.user.companyId);
+        res.json({ success: true, employees });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/employees', corporateAuth, async (req, res) => {
+    try {
+        const { name, email, permissions } = req.body;
+        const [employee] = await db.createEmployee({
+            name,
+            email,
+            permissions: permissions || 'Basic',
+            companyId: req.user.companyId
+        });
+        res.status(201).json({ success: true, employee });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.delete('/employees/:id', corporateAuth, async (req, res) => {
+    try {
+        await db.deleteEmployee(parseInt(req.params.id), req.user.companyId);
+        res.json({ success: true, message: 'تم حذف الموظف بنجاح' });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
