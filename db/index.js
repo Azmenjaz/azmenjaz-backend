@@ -104,13 +104,13 @@ async function getEmployeesByCompany(companyId) {
 async function createEmployee(data) {
     // نستخدم raw SQL لتجنب مشكلة openid في جدول users
     try {
-        const result = await db.execute(
-            `INSERT INTO employees (company_id, name, email, permissions, status, created_at)
-             VALUES ($1, $2, $3, $4, 'Active', NOW())
-             RETURNING *`,
-            [data.companyId, data.name, data.email, data.permissions || 'Basic']
-        );
-        return result.rows || [{ name: data.name, email: data.email }];
+const result = await pool.query(
+    `INSERT INTO employees (company_id, name, email, permissions, status, created_at)
+     VALUES ($1, $2, $3, $4, 'Active', NOW())
+     RETURNING *`,
+    [data.companyId, data.name, data.email, data.permissions || 'Basic']
+);
+return result.rows || [{ name: data.name, email: data.email }];
     } catch (err) {
         // إذا ما في جدول employees، نحاول نضيف لـ users مع openid
         return await db.insert(schema.users).values({
@@ -213,3 +213,4 @@ module.exports = {
     getPortalBookingsByCompany,
     createPortalBooking
 };
+
