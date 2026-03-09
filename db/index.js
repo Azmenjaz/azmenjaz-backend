@@ -1,7 +1,7 @@
 const { drizzle } = require('drizzle-orm/node-postgres');
+const { sql, eq, and } = require('drizzle-orm');
 const pool = require('../config/database');
 const schema = require('./schema');
-const { eq } = require('drizzle-orm');
 
 const db = drizzle(pool, { schema });
 
@@ -89,13 +89,13 @@ async function createPassenger(data) {
 
 async function getEmployeesByCompany(companyId) {
     // محاولة جلب من جدول employees أولاً، وإلا من users
-try {
-    const result = await pool.query(
-        `SELECT * FROM employees WHERE company_id = $1`,
-        [companyId]
-    );
-    return result.rows || [];
-} catch {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM employees WHERE company_id = $1`,
+            [companyId]
+        );
+        return result.rows || [];
+    } catch {
         // fallback: جدول users
         return await db.select().from(schema.users)
             .where(eq(schema.users.companyId, companyId));
@@ -105,13 +105,13 @@ try {
 async function createEmployee(data) {
     // نستخدم raw SQL لتجنب مشكلة openid في جدول users
     try {
-const result = await pool.query(
-    `INSERT INTO employees (company_id, name, email, permissions, status, created_at)
+        const result = await pool.query(
+            `INSERT INTO employees (company_id, name, email, permissions, status, created_at)
      VALUES ($1, $2, $3, $4, 'Active', NOW())
      RETURNING *`,
-    [data.companyId, data.name, data.email, data.permissions || 'Basic']
-);
-return result.rows || [{ name: data.name, email: data.email }];
+            [data.companyId, data.name, data.email, data.permissions || 'Basic']
+        );
+        return result.rows || [{ name: data.name, email: data.email }];
     } catch (err) {
         // إذا ما في جدول employees، نحاول نضيف لـ users مع openid
         return await db.insert(schema.users).values({
@@ -127,14 +127,18 @@ return result.rows || [{ name: data.name, email: data.email }];
 
 async function deleteEmployee(id, companyId) {
     try {
-        await db.execute(
-            `DELETE FROM employees WHERE id = $1 AND company_id = $2`,
+        // Raw SQL for employees table (not in drizzle schema)
+        await pool.query(
+            'DELETE FROM employees WHERE id = $1 AND company_id = $2',
             [id, companyId]
         );
     } catch {
+        // Fallback: delete from users table using drizzle
         return await db.delete(schema.users)
-            .where(eq(schema.users.id, id))
-            .where(eq(schema.users.companyId, companyId));
+            .where(and(
+                eq(schema.users.id, id),
+                eq(schema.users.companyId, companyId)
+            ));
     }
 }
 

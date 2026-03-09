@@ -1,18 +1,40 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db/index');
+const crypto = require('crypto');
 
-// Basic token storage (In production, use JWT or Redis)
+// ─── Auth Token Store ─────────────────────────────────────────
+// NOTE: In-memory store — cleared on server restart.
+// For production, move to Redis or a database-backed session table.
 const authTokens = new Map();
+
+// Token TTL: 7 days
+const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Simple password hashing with SHA-256 + salt (no external deps)
+// For higher security, install and use bcrypt instead
+function hashPassword(password) {
+    const salt = process.env.PASSWORD_SALT || 'safarsmart_secret_2026';
+    return crypto.createHmac('sha256', salt).update(password).digest('hex');
+}
+
+function generateToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
 
 // Auth middleware
 const corporateAuth = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ success: false, error: 'غير مصرح - يرجى تسجيل الدخول' });
     const token = authHeader.split(' ')[1];
-    const user = authTokens.get(token);
-    if (!user) return res.status(401).json({ success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى' });
-    req.user = user;
+    const session = authTokens.get(token);
+    if (!session) return res.status(401).json({ success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى' });
+    // Check expiry
+    if (Date.now() > session.expiresAt) {
+        authTokens.delete(token);
+        return res.status(401).json({ success: false, error: 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مرة أخرى' });
+    }
+    req.user = session.user;
     next();
 };
 
@@ -23,16 +45,24 @@ router.post('/register', async (req, res) => {
         if (!name || !email || !password)
             return res.status(400).json({ success: false, error: 'الاسم والبريد الإلكتروني وكلمة المرور مطلوبة' });
 
+        if (password.length < 8)
+            return res.status(400).json({ success: false, error: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' });
+
         const existing = await db.getCompanyByEmail(email);
         if (existing) return res.status(400).json({ success: false, error: 'البريد الإلكتروني مسجل بالفعل' });
 
-        const [company] = await db.createCompany({ name, email, password, phone });
+        const hashedPassword = hashPassword(password);
+        const [company] = await db.createCompany({ name, email, password: hashedPassword, phone });
 
-        const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        authTokens.set(token, { id: company.id, companyId: company.id, name: company.name, role: 'company' });
+        const token = generateToken();
+        authTokens.set(token, {
+            user: { id: company.id, companyId: company.id, name: company.name, role: 'company' },
+            expiresAt: Date.now() + TOKEN_TTL_MS
+        });
 
         res.status(201).json({ success: true, token, name: company.name, companyId: company.id });
     } catch (error) {
+        console.error('Corporate register error:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -41,18 +71,33 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const company = await db.getCompanyByEmail(email);
+        if (!email || !password)
+            return res.status(400).json({ success: false, error: 'البريد الإلكتروني وكلمة المرور مطلوبان' });
 
-        if (!company || company.password !== password)
+        const company = await db.getCompanyByEmail(email);
+        const hashedInput = hashPassword(password);
+
+        if (!company || company.password !== hashedInput)
             return res.status(401).json({ success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
 
-        const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        authTokens.set(token, { id: company.id, companyId: company.id, name: company.name, role: 'company' });
+        const token = generateToken();
+        authTokens.set(token, {
+            user: { id: company.id, companyId: company.id, name: company.name, role: 'company' },
+            expiresAt: Date.now() + TOKEN_TTL_MS
+        });
 
         res.json({ success: true, token, name: company.name, companyId: company.id });
     } catch (error) {
+        console.error('Corporate login error:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
+});
+
+// ─── LOGOUT ───────────────────────────────────────────────────
+router.post('/logout', corporateAuth, (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (token) authTokens.delete(token);
+    res.json({ success: true, message: 'تم تسجيل الخروج بنجاح' });
 });
 
 // ─── DASHBOARD ───────────────────────────────────────────────

@@ -1,5 +1,4 @@
 const axios = require('axios');
-const pool = require('../config/database');
 
 async function sendPriceAlert(data) {
   const {
