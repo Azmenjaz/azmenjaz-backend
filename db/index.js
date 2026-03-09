@@ -137,6 +137,56 @@ async function deleteEmployee(id, companyId) {
     }
 }
 
+// ─── Travel Policy ───────────────────────────────────────────
+async function getTravelPolicy(companyId) {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM travel_policy WHERE company_id = $1 LIMIT 1',
+            [companyId]
+        );
+        return result.rows[0] || null;
+    } catch { return null; }
+}
+
+async function saveTravelPolicy(data) {
+    const result = await pool.query(
+        `INSERT INTO travel_policy (company_id, max_price, cabin, manager_cabin, advance_days, monthly_budget, require_approval, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         ON CONFLICT (company_id) DO UPDATE SET
+           max_price = EXCLUDED.max_price,
+           cabin = EXCLUDED.cabin,
+           manager_cabin = EXCLUDED.manager_cabin,
+           advance_days = EXCLUDED.advance_days,
+           monthly_budget = EXCLUDED.monthly_budget,
+           require_approval = EXCLUDED.require_approval,
+           updated_at = NOW()
+         RETURNING *`,
+        [data.companyId, data.maxPrice, data.cabin, data.managerCabin, data.advanceDays, data.monthlyBudget, data.requireApproval]
+    );
+    return result.rows[0];
+}
+
+// ─── Portal Bookings ─────────────────────────────────────────
+async function getPortalBookingsByCompany(companyId) {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM portal_bookings WHERE company_id = $1 ORDER BY created_at DESC',
+            [companyId]
+        );
+        return result.rows || [];
+    } catch { return []; }
+}
+
+async function createPortalBooking(data) {
+    const result = await pool.query(
+        `INSERT INTO portal_bookings (company_id, employee_name, origin, destination, travel_date, price, cabin, booking_ref, compliant, booking_type, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+         RETURNING *`,
+        [data.companyId, data.employeeName, data.origin, data.destination, data.travelDate, data.price, data.cabin, data.bookingRef, data.compliant, data.bookingType]
+    );
+    return result.rows[0];
+}
+
 module.exports = {
     db,
     ...schema,
@@ -157,5 +207,9 @@ module.exports = {
     createPassenger,
     getEmployeesByCompany,
     createEmployee,
-    deleteEmployee
+    deleteEmployee,
+    getTravelPolicy,
+    saveTravelPolicy,
+    getPortalBookingsByCompany,
+    createPortalBooking
 };
