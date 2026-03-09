@@ -89,12 +89,13 @@ async function createPassenger(data) {
 
 async function getEmployeesByCompany(companyId) {
     // محاولة جلب من جدول employees أولاً، وإلا من users
-    try {
-        const result = await db.execute(
-            `SELECT * FROM employees WHERE company_id = ${companyId}`
-        );
-        return result.rows || [];
-    } catch {
+try {
+    const result = await pool.query(
+        `SELECT * FROM employees WHERE company_id = $1`,
+        [companyId]
+    );
+    return result.rows || [];
+} catch {
         // fallback: جدول users
         return await db.select().from(schema.users)
             .where(eq(schema.users.companyId, companyId));
@@ -213,4 +214,5 @@ module.exports = {
     getPortalBookingsByCompany,
     createPortalBooking
 };
+
 
