@@ -16,47 +16,50 @@ const nodemailer = require('nodemailer');
  */
 
 const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '465'),
-    secure: process.env.SMTP_SECURE !== 'false', // true by default (SSL)
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false, // allow self-signed certs on shared hosting
-    },
-  });
+    return nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '465'),
+        secure: process.env.SMTP_SECURE !== 'false', // true by default (SSL)
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+        },
+        tls: {
+            rejectUnauthorized: false, // allow self-signed certs on shared hosting
+        },
+        // Add timeouts so it errors out rather than hanging forever (10 seconds)
+        connectionTimeout: 10000,
+        socketTimeout: 10000,
+    });
 };
 
 router.post('/', async (req, res) => {
-  try {
-    const { name, email, subject, message } = req.body;
+    try {
+        const { name, email, subject, message } = req.body;
 
-    // Basic validation
-    if (!name || !email || !message) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Name, email, and message are required.',
-      });
-    }
+        // Basic validation
+        if (!name || !email || !message) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Name, email, and message are required.',
+            });
+        }
 
-    // Email format check
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Invalid email address.',
-      });
-    }
+        // Email format check
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid email address.',
+            });
+        }
 
-    const toAddress = process.env.CONTACT_TO || 'info@safarsmart.com';
-    const subjectLine = subject
-      ? `[SafarSmart Contact] ${subject}`
-      : '[SafarSmart Contact] New Message';
+        const toAddress = process.env.CONTACT_TO || 'info@safarsmart.com';
+        const subjectLine = subject
+            ? `[SafarSmart Contact] ${subject}`
+            : '[SafarSmart Contact] New Message';
 
-    const htmlBody = `
+        const htmlBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 32px; border-radius: 12px;">
         <div style="background: linear-gradient(135deg, #1A365D, #2d4a7a); padding: 20px 24px; border-radius: 10px 10px 0 0;">
           <h2 style="color: white; margin: 0; font-size: 1.3rem;">📩 رسالة جديدة من موقع SafarSmart</h2>
@@ -93,41 +96,41 @@ ${escapeHtml(message)}
       </div>
     `;
 
-    const transporter = createTransporter();
+        const transporter = createTransporter();
 
-    const mailOptions = {
-      from: `"SafarSmart Contact" <${process.env.SMTP_USER}>`,
-      to: toAddress,
-      replyTo: email,          // so you can click Reply and reach the sender directly
-      subject: subjectLine,
-      html: htmlBody,
-      text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject || 'N/A'}\n\nMessage:\n${message}`,
-    };
+        const mailOptions = {
+            from: `"SafarSmart Contact" <${process.env.SMTP_USER}>`,
+            to: toAddress,
+            replyTo: email,          // so you can click Reply and reach the sender directly
+            subject: subjectLine,
+            html: htmlBody,
+            text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject || 'N/A'}\n\nMessage:\n${message}`,
+        };
 
-    await transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailOptions);
 
-    console.log(`✅ Contact email sent from ${email} (${name}) at ${new Date().toISOString()}`);
+        console.log(`✅ Contact email sent from ${email} (${name}) at ${new Date().toISOString()}`);
 
-    res.json({ status: 'success', message: 'Message sent successfully.' });
+        res.json({ status: 'success', message: 'Message sent successfully.' });
 
-  } catch (error) {
-    console.error('❌ Contact email error:', error.message);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to send email. Please try again later.',
-    });
-  }
+    } catch (error) {
+        console.error('❌ Contact email error:', error.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to send email. Please try again later.',
+        });
+    }
 });
 
 // Simple HTML-escape helper – prevents XSS in email body
 function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 module.exports = router;
