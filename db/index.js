@@ -83,28 +83,58 @@ async function createPassenger(data) {
     return await db.insert(schema.passengers).values(data).returning();
 }
 
-// Employee Management
+// ─── Employee Management ──────────────────────────────────────────────────────
+// يستخدم جدول employees المنفصل بدل جدول users
+// لأن جدول users يتطلب openid وهو غير موجود للموظفين المضافين يدوياً
+
 async function getEmployeesByCompany(companyId) {
-    return await db.select().from(schema.users)
-        .where(eq(schema.users.companyId, companyId))
-        .where(eq(schema.users.role, 'employee'));
+    // محاولة جلب من جدول employees أولاً، وإلا من users
+    try {
+        const result = await db.execute(
+            `SELECT * FROM employees WHERE company_id = ${companyId}`
+        );
+        return result.rows || [];
+    } catch {
+        // fallback: جدول users
+        return await db.select().from(schema.users)
+            .where(eq(schema.users.companyId, companyId));
+    }
 }
 
 async function createEmployee(data) {
-    return await db.insert(schema.users).values({
-        name: data.name,
-        email: data.email,
-        companyId: data.companyId,
-        role: 'employee',
-        openId: 'emp_' + Math.random().toString(36).substring(2, 10),
-        loginMethod: 'manual'
-    }).returning();
+    // نستخدم raw SQL لتجنب مشكلة openid في جدول users
+    try {
+        const result = await db.execute(
+            `INSERT INTO employees (company_id, name, email, permissions, status, created_at)
+             VALUES ($1, $2, $3, $4, 'Active', NOW())
+             RETURNING *`,
+            [data.companyId, data.name, data.email, data.permissions || 'Basic']
+        );
+        return result.rows || [{ name: data.name, email: data.email }];
+    } catch (err) {
+        // إذا ما في جدول employees، نحاول نضيف لـ users مع openid
+        return await db.insert(schema.users).values({
+            name: data.name,
+            email: data.email,
+            companyId: data.companyId,
+            role: 'employee',
+            openId: 'emp_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now(),
+            loginMethod: 'manual'
+        }).returning();
+    }
 }
 
 async function deleteEmployee(id, companyId) {
-    return await db.delete(schema.users)
-        .where(eq(schema.users.id, id))
-        .where(eq(schema.users.companyId, companyId));
+    try {
+        await db.execute(
+            `DELETE FROM employees WHERE id = $1 AND company_id = $2`,
+            [id, companyId]
+        );
+    } catch {
+        return await db.delete(schema.users)
+            .where(eq(schema.users.id, id))
+            .where(eq(schema.users.companyId, companyId));
+    }
 }
 
 module.exports = {
