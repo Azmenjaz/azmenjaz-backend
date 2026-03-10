@@ -286,46 +286,45 @@ router.get('/recent-prices', async (req, res) => {
 // جلب جميع الشركات B2B مع إحصائياتها
 router.get('/companies', async (req, res) => {
   try {
-    // نحاول الاستعلام الكامل أولاً
     let result;
     try {
+      // الاستعلام الكامل مع employees وportal_bookings
       result = await pool.query(`
         SELECT 
-          c.id,
-          c.name,
-          c.email,
-          c.phone,
-          c.created_at,
+          c.id, c.name, c.email, c.phone,
+          NULL AS created_at,
           COUNT(DISTINCT e.id) AS employee_count,
           COUNT(DISTINCT pb.id) AS booking_count,
           COALESCE(SUM(pb.price), 0) AS total_spend
         FROM companies c
         LEFT JOIN employees e ON e.company_id = c.id
         LEFT JOIN portal_bookings pb ON pb.company_id = c.id
-        GROUP BY c.id, c.name, c.email, c.phone, c.created_at
-        ORDER BY c.created_at DESC
+        GROUP BY c.id, c.name, c.email, c.phone
+        ORDER BY c.id DESC
       `);
     } catch (joinErr) {
-      // إذا فشل بسبب عدم وجود جداول employees أو portal_bookings
       console.log('Full companies query failed, using fallback:', joinErr.message);
       try {
+        // بدون portal_bookings
         result = await pool.query(`
-          SELECT c.id, c.name, c.email, c.phone, c.created_at,
+          SELECT c.id, c.name, c.email, c.phone,
+            NULL AS created_at,
             COUNT(DISTINCT e.id) AS employee_count,
             0 AS booking_count, 0 AS total_spend
           FROM companies c
           LEFT JOIN employees e ON e.company_id = c.id
-          GROUP BY c.id, c.name, c.email, c.phone, c.created_at
-          ORDER BY c.created_at DESC
+          GROUP BY c.id, c.name, c.email, c.phone
+          ORDER BY c.id DESC
         `);
       } catch (empErr) {
-        // حتى جدول employees غير موجود، نجلب الشركات فقط
         console.log('Employees join failed, using basic query:', empErr.message);
+        // أبسط استعلام ممكن بدون أي JOIN
         result = await pool.query(`
-          SELECT id, name, email, phone, created_at,
+          SELECT id, name, email, phone,
+            NULL AS created_at,
             0 AS employee_count, 0 AS booking_count, 0 AS total_spend
           FROM companies
-          ORDER BY created_at DESC
+          ORDER BY id DESC
         `);
       }
     }
@@ -382,7 +381,8 @@ router.get('/companies/:id', async (req, res) => {
     try {
       result = await pool.query(`
         SELECT
-          c.id, c.name, c.email, c.phone, c.created_at,
+          c.id, c.name, c.email, c.phone,
+          NULL AS created_at,
           COUNT(DISTINCT e.id) AS employee_count,
           COUNT(DISTINCT pb.id) AS booking_count,
           COALESCE(SUM(pb.price), 0) AS total_spend
@@ -390,11 +390,11 @@ router.get('/companies/:id', async (req, res) => {
         LEFT JOIN employees e ON e.company_id = c.id
         LEFT JOIN portal_bookings pb ON pb.company_id = c.id
         WHERE c.id = $1
-        GROUP BY c.id, c.name, c.email, c.phone, c.created_at
+        GROUP BY c.id, c.name, c.email, c.phone
       `, [id]);
     } catch (joinErr) {
       result = await pool.query(
-        `SELECT id, name, email, phone, created_at, 0 AS employee_count, 0 AS booking_count, 0 AS total_spend FROM companies WHERE id = $1`,
+        `SELECT id, name, email, phone, NULL AS created_at, 0 AS employee_count, 0 AS booking_count, 0 AS total_spend FROM companies WHERE id = $1`,
         [id]
       );
     }
