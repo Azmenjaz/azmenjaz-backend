@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const crypto = require('crypto');
+const { invalidateCompanyTokens } = require('../utils/authStore');
 
 // نفس طريقة التشفير المستخدمة في corporateRoutes
 function hashPassword(password) {
@@ -454,8 +455,14 @@ router.put('/companies/:id', async (req, res) => {
 router.delete('/companies/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    // ① إلغاء جميع جلسات البوابة النشطة لهذه الشركة فوراً
+    invalidateCompanyTokens(id);
+
+    // ② حذف الشركة من قاعدة البيانات
     await pool.query('DELETE FROM companies WHERE id = $1', [id]);
-    res.json({ success: true, message: 'تم حذف الشركة بنجاح' });
+
+    res.json({ success: true, message: 'تم حذف الشركة وإلغاء جميع جلساتها بنجاح' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
