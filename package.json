@@ -25,6 +25,7 @@
     "node-cron": "^3.0.3",
     "nodemailer": "^6.9.9",
     "pg": "^8.11.3",
+    "resend": "^6.9.3",
     "zod": "^3.22.4"
   },
   "devDependencies": {
