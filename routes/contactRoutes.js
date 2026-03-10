@@ -90,19 +90,19 @@ ${escapeHtml(message)}
             replyTo: email,
             subject: subjectLine,
             html: htmlBody,
-            text: \`Name: \${name}\\nEmail: \${email}\\nSubject: \${subject || 'N/A'}\\n\\nMessage:\\n\${message}\`,
+            text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject || 'N/A'}\n\nMessage:\n${message}`,
         });
 
         if (error) {
-           console.error('❌ Resend email error response:', error);
-           return res.status(500).json({
+            console.error('❌ Resend email error response:', error);
+            return res.status(500).json({
                 status: 'error',
                 message: 'Failed to send email. Provider error.',
                 error: error.message
             });
         }
 
-        console.log(\`✅ Contact email sent from \${email} (\${name}) at \${new Date().toISOString()}. ID: \${data.id}\`);
+        console.log(`✅ Contact email sent from ${email} (${name}) at ${new Date().toISOString()}. ID: ${data.id}`);
 
         res.json({ status: 'success', message: 'Message sent successfully.' });
 
