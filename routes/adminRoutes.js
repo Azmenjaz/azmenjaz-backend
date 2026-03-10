@@ -354,12 +354,33 @@ router.post('/companies', async (req, res) => {
 
     const hashedPassword = hashPassword(password);
 
-    const result = await pool.query(
-      `INSERT INTO companies (name, email, password, phone, created_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       RETURNING id, name, email, phone, created_at`,
-      [name, email, hashedPassword, phone || 'غير محدد']
-    );
+    // نتحقق من أعمدة الجدول الفعلية أولاً
+    const colCheck = await pool.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'companies' AND column_name IN ('created_at', 'createdAt')
+    `);
+    const cols = colCheck.rows.map(r => r.column_name);
+    
+    let result;
+    if (cols.includes('created_at')) {
+      result = await pool.query(
+        `INSERT INTO companies (name, email, password, phone, created_at)
+         VALUES ($1, $2, $3, $4, NOW()) RETURNING id, name, email, phone`,
+        [name, email, hashedPassword, phone || 'غير محدد']
+      );
+    } else if (cols.includes('createdAt')) {
+      result = await pool.query(
+        `INSERT INTO companies (name, email, password, phone, "createdAt", "updatedAt")
+         VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id, name, email, phone`,
+        [name, email, hashedPassword, phone || 'غير محدد']
+      );
+    } else {
+      result = await pool.query(
+        `INSERT INTO companies (name, email, password, phone)
+         VALUES ($1, $2, $3, $4) RETURNING id, name, email, phone`,
+        [name, email, hashedPassword, phone || 'غير محدد']
+      );
+    }
 
     const company = result.rows[0];
     res.status(201).json({
