@@ -40,8 +40,9 @@ router.post('/', async (req, res) => {
 
         const resend = new Resend(resendApiKey);
 
-        const toAddress = process.env.CONTACT_TO || 'info@safarsmart.com';
-        const fromAddress = process.env.CONTACT_FROM || 'SafarSmart <onboarding@resend.dev>';
+        const toAddress = process.env.CONTACT_TO || 'support@azmenjaz.com';
+        // Resend free tier requires sending FROM onboarding@resend.dev to the registered email address unless a custom domain is verified
+        const fromAddress = process.env.CONTACT_FROM || 'onboarding@resend.dev';
 
         const subjectLine = subject
             ? `[SafarSmart Contact] ${subject}`
