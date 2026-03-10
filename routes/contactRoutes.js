@@ -1,16 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
 /**
  * POST /api/contact
  * Receives a contact form submission and forwards it via email
  *
  * Required env vars:
- *   RESEND_API_KEY - Your Resend API key
- *   CONTACT_TO     - Recipient email (defaults to info@safarsmart.com)
- *   CONTACT_FROM   - Sender email (e.g. Acme <onboarding@resend.dev> or your verified domain)
+ *   SMTP_HOST     – your SMTP server host  (e.g. mail.safarsmart.com  OR smtp.gmail.com)
+ *   SMTP_PORT     – SMTP port              (465 for SSL, 587 for STARTTLS)
+ *   SMTP_SECURE   – "true" for port 465, "false" for 587
+ *   SMTP_USER     – sender email address   (e.g. noreply@safarsmart.com)
+ *   SMTP_PASS     – sender email password
+ *   CONTACT_TO    – recipient email        (defaults to info@safarsmart.com)
  */
+
+const createTransporter = () => {
+    return nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '465'),
+        secure: process.env.SMTP_SECURE !== 'false', // true by default (SSL)
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+        },
+        tls: {
+            rejectUnauthorized: false, // allow self-signed certs on shared hosting
+        },
+        connectionTimeout: 10000,
+        socketTimeout: 10000,
+    });
+};
 
 router.post('/', async (req, res) => {
     try {
@@ -33,17 +53,7 @@ router.post('/', async (req, res) => {
             });
         }
 
-        const resendApiKey = process.env.RESEND_API_KEY;
-        if (!resendApiKey) {
-            throw new Error("RESEND_API_KEY is not configured.");
-        }
-
-        const resend = new Resend(resendApiKey);
-
-        const toAddress = process.env.CONTACT_TO || 'support@azmenjaz.com';
-        // Resend free tier requires sending FROM onboarding@resend.dev to the registered email address unless a custom domain is verified
-        const fromAddress = process.env.CONTACT_FROM || 'onboarding@resend.dev';
-
+        const toAddress = process.env.CONTACT_TO || 'info@safarsmart.com';
         const subjectLine = subject
             ? `[SafarSmart Contact] ${subject}`
             : '[SafarSmart Contact] New Message';
@@ -85,25 +95,20 @@ ${escapeHtml(message)}
       </div>
     `;
 
-        const { data, error } = await resend.emails.send({
-            from: fromAddress,
-            to: [toAddress],
-            replyTo: email,
+        const transporter = createTransporter();
+
+        const mailOptions = {
+            from: `"SafarSmart Contact" <${process.env.SMTP_USER}>`,
+            to: toAddress,
+            replyTo: email,          // so you can click Reply and reach the sender directly
             subject: subjectLine,
             html: htmlBody,
             text: `Name: ${name}\nEmail: ${email}\nSubject: ${subject || 'N/A'}\n\nMessage:\n${message}`,
-        });
+        };
 
-        if (error) {
-            console.error('❌ Resend email error response:', error);
-            return res.status(500).json({
-                status: 'error',
-                message: 'Failed to send email. Provider error.',
-                error: error.message
-            });
-        }
+        await transporter.sendMail(mailOptions);
 
-        console.log(`✅ Contact email sent from ${email} (${name}) at ${new Date().toISOString()}. ID: ${data.id}`);
+        console.log(`✅ Contact email sent from ${email} (${name}) at ${new Date().toISOString()}.`);
 
         res.json({ status: 'success', message: 'Message sent successfully.' });
 
