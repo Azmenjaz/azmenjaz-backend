@@ -23,10 +23,15 @@ const duffel = axios.create({
  * Search for flights.
  * Returns an offer_request id + list of offers.
  */
-async function searchFlights({ origin, destination, date, passengers = 1, cabinClass = 'economy' }) {
+async function searchFlights({ origin, destination, date, returnDate = null, passengers = 1, cabinClass = 'economy' }) {
+  const slices = [{ origin, destination, departure_date: date }];
+  if (returnDate) {
+    slices.push({ origin: destination, destination: origin, departure_date: returnDate });
+  }
+
   const payload = {
     data: {
-      slices: [{ origin, destination, departure_date: date }],
+      slices,
       passengers: Array.from({ length: passengers }, () => ({ type: 'adult' })),
       cabin_class: cabinClass,
     },
@@ -35,9 +40,8 @@ async function searchFlights({ origin, destination, date, passengers = 1, cabinC
   const offerReqRes = await duffel.post('/air/offer_requests?return_offers=true', payload);
   const offerRequest = offerReqRes.data.data;
 
-  // Return slim offer objects for the frontend
   const offers = (offerRequest.offers || []).slice(0, 20).map(formatOffer);
-  return { offerRequestId: offerRequest.id, offers };
+  return { offerRequestId: offerRequest.id, offers, isRoundTrip: !!returnDate };
 }
 
 /**
