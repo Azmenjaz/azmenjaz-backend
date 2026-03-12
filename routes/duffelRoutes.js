@@ -107,11 +107,13 @@ router.post('/book', corporateAuth, async (req, res) => {
   }
 });
 
-// ── DELETE /api/duffel/order/:id ──────────────────────────────────────────────
-router.delete('/order/:id', corporateAuth, async (req, res) => {
+// ── GET /api/duffel/suggestions ──────────────────────────────────────────────
+router.get('/suggestions', corporateAuth, async (req, res) => {
   try {
-    const result = await duffel.cancelOrder(req.params.id);
-    res.json({ success: true, cancellation: result });
+    const query = req.query.q;
+    if (!query) return res.json({ success: true, suggestions: [] });
+    const suggestions = await duffel.suggestLocations(query);
+    res.json({ success: true, suggestions });
   } catch (err) {
     const msg = err.response?.data?.errors?.[0]?.message || err.message;
     res.status(500).json({ success: false, error: msg });
