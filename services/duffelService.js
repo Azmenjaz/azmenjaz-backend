@@ -119,7 +119,8 @@ function formatOffer(offer) {
     baseAmount: offer.base_amount,
     taxAmount: offer.tax_amount,
     expiresAt: offer.expires_at,
-    cabinClass: slice?.fare_brand_name || offer.cabin_class,
+    cabinClass: offer.cabin_class, // formal class (economy, business, etc)
+    fareBrand: slice?.fare_brand_name || '', // airline's brand name (Standard, Value, etc)
     // Passenger IDs assigned by Duffel (required for booking)
     passengerIds: (offer.passengers || []).map(p => p.id),
     // Airline
