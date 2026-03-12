@@ -3,13 +3,8 @@ const router = express.Router();
 const db = require('../db/index');
 const crypto = require('crypto');
 
-// ─── Auth Token Store ─────────────────────────────────────────
-// NOTE: In-memory store — cleared on server restart.
-// For production, move to Redis or a database-backed session table.
-const authTokens = new Map();
-
-// Token TTL: 7 days
-const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// ─── Auth Session Store (DB-backed, survives restarts) ───────────────────────
+const { saveSession, getSession, deleteSession, TOKEN_TTL_MS } = require('../utils/authStore');
 
 // Simple password hashing with SHA-256 + salt (no external deps)
 // For higher security, install and use bcrypt instead
@@ -22,20 +17,20 @@ function generateToken() {
     return crypto.randomBytes(32).toString('hex');
 }
 
-// Auth middleware
-const corporateAuth = (req, res, next) => {
+// Auth middleware (async — checks DB)
+const corporateAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ success: false, error: 'غير مصرح - يرجى تسجيل الدخول' });
     const token = authHeader.split(' ')[1];
-    const session = authTokens.get(token);
-    if (!session) return res.status(401).json({ success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى' });
-    // Check expiry
-    if (Date.now() > session.expiresAt) {
-        authTokens.delete(token);
-        return res.status(401).json({ success: false, error: 'انتهت صلاحية الجلسة، يرجى تسجيل الدخول مرة أخرى' });
+    try {
+        const session = await getSession(token);
+        if (!session) return res.status(401).json({ success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى' });
+        req.user = session.user;
+        next();
+    } catch (err) {
+        console.error('corporateAuth DB error:', err.message);
+        return res.status(500).json({ success: false, error: 'خطأ في التحقق من الجلسة' });
     }
-    req.user = session.user;
-    next();
 };
 
 // ─── REGISTER ────────────────────────────────────────────────
@@ -55,10 +50,7 @@ router.post('/register', async (req, res) => {
         const [company] = await db.createCompany({ name, email, password: hashedPassword, phone });
 
         const token = generateToken();
-        authTokens.set(token, {
-            user: { id: company.id, companyId: company.id, name: company.name, role: 'company' },
-            expiresAt: Date.now() + TOKEN_TTL_MS
-        });
+        await saveSession(token, { companyId: company.id, name: company.name, email: company.email });
 
         res.status(201).json({ success: true, token, name: company.name, companyId: company.id });
     } catch (error) {
@@ -81,10 +73,7 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
 
         const token = generateToken();
-        authTokens.set(token, {
-            user: { id: company.id, companyId: company.id, name: company.name, role: 'company' },
-            expiresAt: Date.now() + TOKEN_TTL_MS
-        });
+        await saveSession(token, { companyId: company.id, name: company.name, email: company.email });
 
         res.json({ success: true, token, name: company.name, companyId: company.id });
     } catch (error) {
@@ -94,9 +83,9 @@ router.post('/login', async (req, res) => {
 });
 
 // ─── LOGOUT ───────────────────────────────────────────────────
-router.post('/logout', corporateAuth, (req, res) => {
+router.post('/logout', corporateAuth, async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
-    if (token) authTokens.delete(token);
+    if (token) await deleteSession(token);
     res.json({ success: true, message: 'تم تسجيل الخروج بنجاح' });
 });
 

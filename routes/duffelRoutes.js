@@ -2,17 +2,20 @@ const express = require('express');
 const router = express.Router();
 const duffel = require('../services/duffelService');
 const pool = require('../config/database');
-const { authTokens } = require('../utils/authStore');
+const { getSession } = require('../utils/authStore');
 
-// ── Auth Middleware (reuse corporate auth) ────────────────────────────────────
-const corporateAuth = (req, res, next) => {
+// ── Auth Middleware ────────────────────────────────────────────────────────────
+const corporateAuth = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ success: false, error: 'غير مصرح' });
-  const session = authTokens.get(token);
-  if (!session || Date.now() > session.expiresAt)
-    return res.status(401).json({ success: false, error: 'انتهت الجلسة' });
-  req.user = session.user;
-  next();
+  try {
+    const session = await getSession(token);
+    if (!session) return res.status(401).json({ success: false, error: 'انتهت الجلسة' });
+    req.user = session.user;
+    next();
+  } catch (err) {
+    return res.status(500).json({ success: false, error: 'خطأ في التحقق' });
+  }
 };
 
 // ── POST /api/duffel/search ───────────────────────────────────────────────────
