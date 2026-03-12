@@ -21,7 +21,7 @@ const corporateAuth = async (req, res, next) => {
 // ── POST /api/duffel/search ───────────────────────────────────────────────────
 router.post('/search', corporateAuth, async (req, res) => {
   try {
-    const { origin, destination, date, passengers = 1, cabinClass = 'economy' } = req.body;
+    const { origin, destination, date, returnDate = null, passengers = 1, cabinClass = 'economy' } = req.body;
     if (!origin || !destination || !date)
       return res.status(400).json({ success: false, error: 'origin, destination, date مطلوبة' });
 
@@ -29,6 +29,7 @@ router.post('/search', corporateAuth, async (req, res) => {
       origin: origin.toUpperCase(),
       destination: destination.toUpperCase(),
       date,
+      returnDate: returnDate || null,
       passengers: Math.min(parseInt(passengers) || 1, 9),
       cabinClass,
     });
