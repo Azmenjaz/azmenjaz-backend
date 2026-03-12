@@ -108,6 +108,38 @@ async function cancelOrder(orderId) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+const arabicMap = {
+  'الرياض': 'RUH', 'جدة': 'JED', 'الدمام': 'DMM', 'المدينة': 'MED', 'المدينة المنورة': 'MED',
+  'مكة': 'JED', 'ابها': 'AHB', 'أبها': 'AHB', 'الطائف': 'TIF', 'جازان': 'GIZ',
+  'تبوك': 'TUU', 'القصيم': 'ELQ', 'بريدة': 'ELQ', 'حائل': 'HAS', 'نجران': 'EAM',
+  'ينبع': 'YNB', 'العلا': 'ULH', 'الباحة': 'ABT', 'الأحساء': 'HOF', 'عرعر': 'RAE',
+  'شرورة': 'SHW', 'دبي': 'DXB', 'ابوظبي': 'AUH', 'أبوظبي': 'AUH', 'الشارقة': 'SHJ',
+  'الدوحة': 'DOH', 'المنامة': 'BAH', 'البحرين': 'BAH', 'مسقط': 'MCT', 'الكويت': 'KWI',
+  'القاهرة': 'CAI', 'الاسكندرية': 'HBE', 'الإسكندرية': 'HBE', 'شرم الشيخ': 'SSH',
+  'الغردقة': 'HRG', 'الأقصر': 'LXR', 'عمان': 'AMM', 'بيروت': 'BEY', 'بغداد': 'BGW',
+  'أربيل': 'EBL', 'الخرطوم': 'KRT', 'تونس': 'TUN', 'الدار البيضاء': 'CMN',
+  'مراكش': 'RAK', 'الجزائر': 'ALG', 'طرابلس': 'TIP', 'إسطنبول': 'IST', 'اسطنبول': 'IST',
+  'أنقرة': 'ESB', 'انطاليا': 'AYT', 'أنطاليا': 'AYT', 'طرابزون': 'TZX', 'بودروم': 'BJV',
+  'إزمير': 'ADB', 'لندن': 'LHR', 'باريس': 'CDG', 'مدريد': 'MAD', 'برشلونة': 'BCN',
+  'روما': 'FCO', 'ميلان': 'MXP', 'ميلانو': 'MXP', 'امستردام': 'AMS', 'أمستردام': 'AMS',
+  'فرانكفورت': 'FRA', 'ميونخ': 'MUC', 'برلين': 'BER', 'فيينا': 'VIE', 'جنيف': 'GVA',
+  'زيورخ': 'ZRH', 'بروكسل': 'BRU', 'أثينا': 'ATH', 'لشبونة': 'LIS', 'موسكو': 'SVO',
+  'براغ': 'PRG', 'وارسو': 'WAW', 'بودابست': 'BUD', 'كوبنهاغن': 'CPH', 'ستوكهولم': 'ARN',
+  'أوسلو': 'OSL', 'هلسنكي': 'HEL', 'دبلن': 'DUB', 'مانشستر': 'MAN', 'نيس': 'NCE',
+  'ليون': 'LYS', 'البندقية': 'VCE', 'فلورنسا': 'FLR', 'مالقا': 'AGP', 'إشبيلية': 'SVQ',
+  'بانكوك': 'BKK', 'كوالالمبور': 'KUL', 'جاكرتا': 'CGK', 'سنغافورة': 'SIN',
+  'طوكيو': 'NRT', 'سيول': 'ICN', 'بكين': 'PEK', 'شنغهاي': 'PVG', 'هونغ كونغ': 'HKG',
+  'هونج كونج': 'HKG', 'مومباي': 'BOM', 'نيودلهي': 'DEL', 'نيو دلهي': 'DEL',
+  'كولومبو': 'CMB', 'مالديف': 'MLE', 'المالديف': 'MLE', 'ماليه': 'MLE', 'بالي': 'DPS',
+  'مانيلا': 'MNL', 'هانوي': 'HAN', 'تايبيه': 'TPE', 'نيروبي': 'NBI', 'أديس أبابا': 'ADD',
+  'اديس ابابا': 'ADD', 'دار السلام': 'DAR', 'كيب تاون': 'CPT', 'جوهانسبرغ': 'JNB',
+  'نيويورك': 'JFK', 'لوس أنجلوس': 'LAX', 'لوس انجلوس': 'LAX', 'شيكاغو': 'ORD',
+  'واشنطن': 'IAD', 'ميامي': 'MIA', 'سان فرانسيسكو': 'SFO', 'تورنتو': 'YYZ',
+  'ساو باولو': 'GRU', 'بوينس آيرس': 'EZE', 'سيدني': 'SYD', 'ملبورن': 'MEL',
+  'إسلام اباد': 'ISB', 'اسلام اباد': 'ISB', 'لاهور': 'LHE', 'كراتشي': 'KHI',
+  'كابل': 'KBL', 'طشقند': 'TAS', 'باكو': 'GYD', 'تبليسي': 'TBS', 'يريفان': 'EVN',
+};
+
 function formatOffer(offer) {
   const slice = offer.slices?.[0];
   const seg = slice?.segments?.[0];
@@ -146,8 +178,24 @@ function formatOffer(offer) {
  */
 async function suggestLocations(query) {
   if (!query || query.length < 2) return [];
-  const res = await duffel.get('/places/suggestions', { params: { query } });
-  return res.data.data;
+  
+  // Convert Arabic names to IATA codes locally for better Duffel compatibility
+  let searchKeyword = query;
+  if (arabicMap[query]) {
+    searchKeyword = arabicMap[query];
+  } else {
+    const partialMatch = Object.keys(arabicMap).find(k => k.includes(query));
+    if (partialMatch) searchKeyword = arabicMap[partialMatch];
+  }
+
+  try {
+    console.log('[Duffel Service] Requesting suggestions for:', searchKeyword);
+    const res = await duffel.get('/places/suggestions', { params: { query: searchKeyword } });
+    return res.data.data;
+  } catch (err) {
+    console.error('[Duffel Service] Error fetching suggestions:', err.response?.data || err.message);
+    throw err;
+  }
 }
 
 module.exports = { searchFlights, getOffer, createOrder, cancelOrder, suggestLocations };
