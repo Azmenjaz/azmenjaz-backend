@@ -56,13 +56,13 @@ async function getOffer(offerId) {
  * Create an order (book the flight).
  * passengers: [{ title, given_name, family_name, born_on, gender, email, phone_number, passport_number }]
  */
-async function createOrder({ offerId, passengers, paymentAmount, paymentCurrency }) {
+async function createOrder({ offerId, passengers, paymentAmount, paymentCurrency, offerPassengerIds }) {
   const payload = {
     data: {
       type: 'instant',
       selected_offers: [offerId],
       passengers: passengers.map((p, i) => ({
-        id: `passenger_${i}`,
+        id: offerPassengerIds?.[i] || `passenger_${i}`,
         title: p.title || 'mr',
         given_name: p.given_name,
         family_name: p.family_name,
@@ -120,6 +120,8 @@ function formatOffer(offer) {
     taxAmount: offer.tax_amount,
     expiresAt: offer.expires_at,
     cabinClass: slice?.fare_brand_name || offer.cabin_class,
+    // Passenger IDs assigned by Duffel (required for booking)
+    passengerIds: (offer.passengers || []).map(p => p.id),
     // Airline
     airline: seg?.marketing_carrier?.name || '—',
     airlineIata: seg?.marketing_carrier?.iata_code || '',
