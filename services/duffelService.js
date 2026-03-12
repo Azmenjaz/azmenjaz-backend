@@ -141,4 +141,13 @@ function formatOffer(offer) {
   };
 }
 
-module.exports = { searchFlights, getOffer, createOrder, cancelOrder };
+/**
+ * Suggest locations (cities/airports) based on a query string.
+ */
+async function suggestLocations(query) {
+  if (!query || query.length < 2) return [];
+  const res = await duffel.get('/places/suggestions', { params: { query } });
+  return res.data.data;
+}
+
+module.exports = { searchFlights, getOffer, createOrder, cancelOrder, suggestLocations };
