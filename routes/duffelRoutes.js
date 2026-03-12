@@ -66,6 +66,7 @@ router.post('/book', corporateAuth, async (req, res) => {
       passengers,
       paymentAmount: offerAmount,
       paymentCurrency: offerCurrency || 'SAR',
+      offerPassengerIds: req.body.offerPassengerIds, // Pass the IDs from the frontend
     });
 
     // Save to portal_bookings
