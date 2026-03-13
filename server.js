@@ -25,7 +25,7 @@ app.use(cors({
 app.use(express.json());
 
 // Serving static frontend files
-app.use(express.static(path.join(__dirname, '../frontend')));
+app.use(express.static(path.join(__dirname, '../Frontend/public_html')));
 
 // Routes
 app.use('/api/users', userRoutes);
@@ -37,14 +37,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/tp', tpRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/duffel', duffelRoutes);
-
-// Serve the React Portal (Make sure to run 'npm run build' in frontend/portal first)
-app.use('/portal', express.static(path.join(__dirname, '../frontend/dist/portal')));
-
-// Handle React Portal routing - return index.html for all /portal/* routes
-app.get('/portal/*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/portal/index.html'));
-});
 
 scheduleTask();
 
