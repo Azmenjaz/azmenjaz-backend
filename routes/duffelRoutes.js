@@ -87,8 +87,8 @@ router.post('/book', corporateAuth, async (req, res) => {
       await pool.query(
         `INSERT INTO portal_bookings
           (company_id, employee_name, origin, destination, travel_date,
-           price, cabin, booking_ref, compliant, booking_type, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'flight', NOW())`,
+           price, cabin, booking_ref, compliant, booking_type, status, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'flight',$10, NOW())`,
         [
           req.user.companyId,
           (passengers[0]?.given_name || '') + ' ' + (passengers[0]?.family_name || ''),
@@ -99,6 +99,7 @@ router.post('/book', corporateAuth, async (req, res) => {
           flightInfo?.cabinClass || 'economy',
           order.booking_reference || order.id,
           flightInfo?.compliant !== false,
+          flightInfo?.status || 'confirmed',
         ]
       );
       console.log('[duffel/book] Booking saved to database');

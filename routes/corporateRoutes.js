@@ -121,6 +121,43 @@ router.get('/dashboard', corporateAuth, async (req, res) => {
     }
 });
 
+// ─── COMPANY PROFILE ─────────────────────────────────────────
+router.get('/profile', corporateAuth, async (req, res) => {
+    try {
+        const company = await db.getCompanyById(req.user.companyId);
+        if (!company) return res.status(404).json({ success: false, error: 'الشركة غير موجودة' });
+        
+        // Remove sensitive fields
+        delete company.password;
+        
+        res.json({ success: true, company });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+router.post('/profile', corporateAuth, async (req, res) => {
+    try {
+        const { name, website, taxId, registrationNumber, address, city, country, brandColor, logoUrl } = req.body;
+        
+        const updated = await db.updateCompanyProfile(req.user.companyId, {
+            name, 
+            website, 
+            taxId, 
+            registrationNumber, 
+            address, 
+            city, 
+            country, 
+            brandColor, 
+            logoUrl
+        });
+
+        res.json({ success: true, company: updated });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // ─── TRAVEL POLICY ───────────────────────────────────────────
 router.get('/policy', corporateAuth, async (req, res) => {
     try {
@@ -151,12 +188,21 @@ router.post('/policy', corporateAuth, async (req, res) => {
 
 // ─── PORTAL BOOKINGS ─────────────────────────────────────────
 router.get('/portal-bookings', corporateAuth, async (req, res) => {
-    try {
-        const bookings = await db.getPortalBookingsByCompany(req.user.companyId);
-        res.json({ success: true, bookings });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+  try {
+    const bookings = await db.getPortalBookingsByCompany(req.user.companyId);
+    res.json({ success: true, bookings });
+  } catch (err) { res.status(500).json({ success: false, error: 'تعذر جلب الحجوزات' }); }
+});
+
+router.put('/portal-bookings/:id/status', corporateAuth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['confirmed', 'rejected'].includes(status)) {
+        return res.status(400).json({ success: false, error: 'حالة غير صالحة' });
     }
+    const updated = await db.updatePortalBookingStatus(req.params.id, status, req.user.companyId);
+    res.json({ success: true, booking: updated });
+  } catch (err) { res.status(500).json({ success: false, error: 'تعذر تحديث الحالة' }); }
 });
 
 router.post('/portal-bookings', corporateAuth, async (req, res) => {
