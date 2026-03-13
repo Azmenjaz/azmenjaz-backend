@@ -10,6 +10,17 @@ function hashPassword(password) {
   return crypto.createHmac('sha256', salt).update(password).digest('hex');
 }
 
+// ─── Admin Session Store (in-memory) ──────────────────────────────────────────
+const adminSessions = new Set();
+
+const adminAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token || !adminSessions.has(token)) {
+    return res.status(401).json({ success: false, error: 'غير مصرح' });
+  }
+  next();
+};
+
 // Initialize Tables
 const initTables = async () => {
   try {
@@ -92,11 +103,12 @@ router.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      // في الإنتاج الحقيقي، استخدم JWT Token
+      const token = crypto.randomBytes(32).toString('hex');
+      adminSessions.add(token);
       res.json({
         success: true,
         message: 'تم تسجيل الدخول بنجاح',
-        token: 'admin-token-12345' // مؤقت للتجربة
+        token
       });
     } else {
       res.status(401).json({
@@ -110,7 +122,7 @@ router.post('/login', async (req, res) => {
 });
 
 // إحصائيات Dashboard
-router.get('/stats', async (req, res) => {
+router.get('/stats', adminAuth, async (req, res) => {
   try {
     // عدد المستخدمين
     const usersCount = await pool.query('SELECT COUNT(*) as count FROM users');
@@ -171,7 +183,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // جلب جميع المستخدمين
-router.get('/users', async (req, res) => {
+router.get('/users', adminAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -194,7 +206,7 @@ router.get('/users', async (req, res) => {
 });
 
 // جلب جميع التنبيهات
-router.get('/alerts', async (req, res) => {
+router.get('/alerts', adminAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
@@ -218,7 +230,7 @@ router.get('/alerts', async (req, res) => {
 });
 
 // حذف مستخدم
-router.delete('/users/:userId', async (req, res) => {
+router.delete('/users/:userId', adminAuth, async (req, res) => {
   try {
     const { userId } = req.params;
 
@@ -234,7 +246,7 @@ router.delete('/users/:userId', async (req, res) => {
 });
 
 // حذف تنبيه
-router.delete('/alerts/:alertId', async (req, res) => {
+router.delete('/alerts/:alertId', adminAuth, async (req, res) => {
   try {
     const { alertId } = req.params;
 
@@ -250,7 +262,7 @@ router.delete('/alerts/:alertId', async (req, res) => {
 });
 
 // تشغيل Cron Job يدوياً
-router.post('/run-cron', async (req, res) => {
+router.post('/run-cron', adminAuth, async (req, res) => {
   try {
     const { checkAllPrices } = require('../cron/priceChecker');
 
@@ -267,7 +279,7 @@ router.post('/run-cron', async (req, res) => {
 });
 
 // آخر الأسعار المسجلة
-router.get('/recent-prices', async (req, res) => {
+router.get('/recent-prices', adminAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT * FROM price_history
@@ -285,7 +297,7 @@ router.get('/recent-prices', async (req, res) => {
 });
 
 // جلب جميع الشركات B2B مع إحصائياتها
-router.get('/companies', async (req, res) => {
+router.get('/companies', adminAuth, async (req, res) => {
   try {
     let result;
     try {
@@ -338,7 +350,7 @@ router.get('/companies', async (req, res) => {
 });
 
 // إضافة شركة B2B جديدة مباشرة من لوحة الإدارة
-router.post('/companies', async (req, res) => {
+router.post('/companies', adminAuth, async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
 
@@ -396,7 +408,7 @@ router.post('/companies', async (req, res) => {
 });
 
 // جلب شركة واحدة بالـ ID
-router.get('/companies/:id', async (req, res) => {
+router.get('/companies/:id', adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     let result;
@@ -431,7 +443,7 @@ router.get('/companies/:id', async (req, res) => {
 });
 
 // تعديل بيانات شركة
-router.put('/companies/:id', async (req, res) => {
+router.put('/companies/:id', adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { name, phone } = req.body;
@@ -452,12 +464,12 @@ router.put('/companies/:id', async (req, res) => {
 });
 
 // حذف شركة
-router.delete('/companies/:id', async (req, res) => {
+router.delete('/companies/:id', adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
     // ① إلغاء جميع جلسات البوابة النشطة لهذه الشركة فوراً
-    invalidateCompanyTokens(id);
+    await invalidateCompanyTokens(id);
 
     // ② حذف الشركة من قاعدة البيانات
     await pool.query('DELETE FROM companies WHERE id = $1', [id]);

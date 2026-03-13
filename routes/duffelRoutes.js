@@ -78,7 +78,7 @@ router.post('/book', corporateAuth, async (req, res) => {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'flight', NOW())`,
         [
           req.user.companyId,
-          passengers[0]?.given_name + ' ' + passengers[0]?.family_name,
+          (passengers[0]?.given_name || '') + ' ' + (passengers[0]?.family_name || ''),
           flightInfo?.origin || '',
           flightInfo?.destination || '',
           flightInfo?.date || null,
@@ -111,8 +111,11 @@ router.post('/book', corporateAuth, async (req, res) => {
 router.get('/suggestions', corporateAuth, async (req, res) => {
   try {
     const query = req.query.q;
+    console.log('[Autocomplete] Query received:', query);
     if (!query) return res.json({ success: true, suggestions: [] });
+    
     const suggestions = await duffel.suggestLocations(query);
+    console.log(`[Autocomplete] Found ${suggestions?.length || 0} suggestions for "${query}"`);
     res.json({ success: true, suggestions });
   } catch (err) {
     const msg = err.response?.data?.errors?.[0]?.message || err.message;
