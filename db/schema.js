@@ -101,11 +101,26 @@ const passengers = pgTable("passengers", {
     createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+// Operations requests table for admin support
+const operationsRequests = pgTable("operationsRequests", {
+    id: serial("id").primaryKey(),
+    companyId: integer("companyId").references(() => companies.id, { onDelete: 'cascade' }),
+    type: varchar("type", { length: 50 }).notNull(), // e.g., 'refund', 'change', 'support', 'booking_failure'
+    priority: varchar("priority", { length: 20 }).default("medium"),
+    subject: varchar("subject", { length: 255 }).notNull(),
+    description: text("description"),
+    status: varchar("status", { length: 20 }).default("pending"), // pending, in_progress, resolved, closed
+    metadata: text("metadata"), // JSON string for extra flight/hotel details
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
 module.exports = {
     users,
     companies,
     flightBookings,
     hotelBookings,
     visaRequests,
-    passengers
+    passengers,
+    operationsRequests
 };
