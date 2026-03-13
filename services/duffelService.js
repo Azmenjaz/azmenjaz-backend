@@ -173,24 +173,59 @@ function formatOffer(offer) {
   };
 }
 
+// English city name mapping (for display in autocomplete results)
+const iataToEnglish = {
+  RUH: 'Riyadh', JED: 'Jeddah', DMM: 'Dammam', MED: 'Madinah', AHB: 'Abha',
+  TIF: 'Taif', GIZ: 'Jazan', TUU: 'Tabuk', ELQ: 'Qassim', HAS: 'Hail',
+  EAM: 'Najran', YNB: 'Yanbu', ULH: 'AlUla', ABT: 'Baha', HOF: 'Al-Ahsa',
+  RAE: 'Arar', SHW: 'Sharurah', DXB: 'Dubai', AUH: 'Abu Dhabi', SHJ: 'Sharjah',
+  DOH: 'Doha', BAH: 'Bahrain', MCT: 'Muscat', KWI: 'Kuwait City',
+  CAI: 'Cairo', HBE: 'Alexandria', SSH: 'Sharm el-Sheikh', HRG: 'Hurghada',
+  LXR: 'Luxor', AMM: 'Amman', BEY: 'Beirut', BGW: 'Baghdad', EBL: 'Erbil',
+  KRT: 'Khartoum', TUN: 'Tunis', CMN: 'Casablanca', RAK: 'Marrakech',
+  ALG: 'Algiers', TIP: 'Tripoli', IST: 'Istanbul', ESB: 'Ankara',
+  AYT: 'Antalya', LHR: 'London', CDG: 'Paris', MAD: 'Madrid', BCN: 'Barcelona',
+  FCO: 'Rome', MXP: 'Milan', AMS: 'Amsterdam', FRA: 'Frankfurt', MUC: 'Munich',
+  BER: 'Berlin', JFK: 'New York', LAX: 'Los Angeles', ORD: 'Chicago',
+  IAD: 'Washington DC', MIA: 'Miami', SFO: 'San Francisco', DXB: 'Dubai',
+  BKK: 'Bangkok', KUL: 'Kuala Lumpur', SIN: 'Singapore', NRT: 'Tokyo',
+  ICN: 'Seoul', PEK: 'Beijing', PVG: 'Shanghai', HKG: 'Hong Kong',
+  BOM: 'Mumbai', DEL: 'New Delhi', SYD: 'Sydney', MEL: 'Melbourne',
+};
+
 /**
  * Suggest locations (cities/airports) based on a query string.
+ * For Arabic input: searches the local arabicMap (no Duffel call needed).
+ * For English/IATA input: calls Duffel /places/suggestions.
  */
 async function suggestLocations(query) {
   if (!query || query.length < 2) return [];
-  
-  // Convert Arabic names to IATA codes locally for better Duffel compatibility
-  let searchKeyword = query;
-  if (arabicMap[query]) {
-    searchKeyword = arabicMap[query];
-  } else {
-    const partialMatch = Object.keys(arabicMap).find(k => k.includes(query));
-    if (partialMatch) searchKeyword = arabicMap[partialMatch];
+
+  const isArabic = /[\u0600-\u06FF]/.test(query);
+
+  if (isArabic) {
+    // Search arabicMap locally — Duffel does not understand Arabic text
+    const matches = Object.entries(arabicMap).filter(([name]) => name.includes(query));
+    if (matches.length === 0) return [];
+
+    // Deduplicate by IATA code and return up to 8 results
+    const seen = new Set();
+    return matches
+      .filter(([, iata]) => { if (seen.has(iata)) return false; seen.add(iata); return true; })
+      .slice(0, 8)
+      .map(([arabicName, iata]) => ({
+        iata_code: iata,
+        name: iataToEnglish[iata] || iata,
+        city_name: arabicName,
+        country_name: '',
+        type: 'airport',
+      }));
   }
 
+  // English text or IATA code — call Duffel directly
   try {
-    console.log('[Duffel Service] Requesting suggestions for:', searchKeyword);
-    const res = await duffel.get('/places/suggestions', { params: { query: searchKeyword } });
+    console.log('[Duffel Service] Requesting suggestions for:', query);
+    const res = await duffel.get('/places/suggestions', { params: { query } });
     return res.data.data;
   } catch (err) {
     console.error('[Duffel Service] Error fetching suggestions:', err.response?.data || err.message);
