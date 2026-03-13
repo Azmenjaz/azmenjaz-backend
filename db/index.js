@@ -114,10 +114,10 @@ async function createEmployee(data) {
     // نستخدم raw SQL لتجنب مشكلة openid في جدول users
     try {
         const result = await pool.query(
-            `INSERT INTO employees (company_id, name, email, permissions, status, created_at)
-     VALUES ($1, $2, $3, $4, 'Active', NOW())
+            `INSERT INTO employees (company_id, name, email, job_title, passport, permissions, status, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, 'Active', NOW())
      RETURNING *`,
-            [data.companyId, data.name, data.email, data.permissions || 'Basic']
+            [data.companyId, data.name, data.email, data.title || null, data.passport || null, data.permissions || 'Basic']
         );
         return result.rows || [{ name: data.name, email: data.email }];
     } catch (err) {
