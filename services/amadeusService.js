@@ -5,7 +5,7 @@ const amadeus = (process.env.AMADEUS_CLIENT_ID && process.env.AMADEUS_CLIENT_SEC
   ? new Amadeus({
     clientId: process.env.AMADEUS_CLIENT_ID,
     clientSecret: process.env.AMADEUS_CLIENT_SECRET,
-    hostname: 'test'
+    hostname: process.env.NODE_ENV === 'production' ? 'production' : 'test'
   })
   : null;
 
@@ -51,8 +51,8 @@ class AmadeusService {
       // معالجة البيانات
       const flights = response.data.map(offer => {
         // استخراج معلومات الشنط (Checked Bags) من أول قطعة في أول رحلة
-        const fareDetails = offer.travelerPricings[0].fareDetailsBySegment[0];
-        const baggage = fareDetails.includedCheckedBags;
+        const fareDetails = offer.travelerPricings?.[0]?.fareDetailsBySegment?.[0];
+        const baggage = fareDetails?.includedCheckedBags;
 
         const processedFlight = {
           id: offer.id,
@@ -68,7 +68,7 @@ class AmadeusService {
             isDirect: itinerary.segments.length === 1
           })),
           baggage: baggage ? (baggage.quantity !== undefined ? baggage.quantity : (baggage.weight ? `${baggage.weight}${baggage.weightUnit}` : '0')) : '0',
-          cabin: travelClass || fareDetails.cabin
+          cabin: travelClass || fareDetails?.cabin
         };
 
         return processedFlight;
@@ -197,7 +197,6 @@ class AmadeusService {
       'KE': 'الخطوط الكورية',
       'SU': 'إيروفلوت',
       'OK': 'التشيكية',
-      'WY': 'الطيران العُماني',
       'UX': 'إير يوروبا',
       'W3': 'أراسجت',
       'WN': 'ساوثويست',
@@ -482,10 +481,13 @@ class AmadeusService {
     try {
       console.log('🔑 Testing Amadeus API connection...');
 
+      const testDate = new Date();
+      testDate.setDate(testDate.getDate() + 30);
+      const departureDateStr = testDate.toISOString().split('T')[0];
       const response = await amadeus.shopping.flightOffersSearch.get({
         originLocationCode: 'RUH',
         destinationLocationCode: 'JED',
-        departureDate: '2026-02-15',
+        departureDate: departureDateStr,
         adults: '1',
         max: '1'
       });

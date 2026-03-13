@@ -187,7 +187,7 @@ const iataToEnglish = {
   AYT: 'Antalya', LHR: 'London', CDG: 'Paris', MAD: 'Madrid', BCN: 'Barcelona',
   FCO: 'Rome', MXP: 'Milan', AMS: 'Amsterdam', FRA: 'Frankfurt', MUC: 'Munich',
   BER: 'Berlin', JFK: 'New York', LAX: 'Los Angeles', ORD: 'Chicago',
-  IAD: 'Washington DC', MIA: 'Miami', SFO: 'San Francisco', DXB: 'Dubai',
+  IAD: 'Washington DC', MIA: 'Miami', SFO: 'San Francisco',
   BKK: 'Bangkok', KUL: 'Kuala Lumpur', SIN: 'Singapore', NRT: 'Tokyo',
   ICN: 'Seoul', PEK: 'Beijing', PVG: 'Shanghai', HKG: 'Hong Kong',
   BOM: 'Mumbai', DEL: 'New Delhi', SYD: 'Sydney', MEL: 'Melbourne',
