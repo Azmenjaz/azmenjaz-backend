@@ -238,10 +238,10 @@ router.get('/employees', corporateAuth, async (req, res) => {
 
 router.post('/employees', corporateAuth, async (req, res) => {
     try {
-        const { name, email, permissions } = req.body;
+        const { name, email, title, passport, permissions } = req.body;
         const [employee] = await db.createEmployee({
-            name, email,
-            permissions: permissions || 'Basic',
+            name, email, title, passport,
+            permissions: permissions || 'Employee',
             companyId: req.user.companyId
         });
         res.status(201).json({ success: true, employee });
