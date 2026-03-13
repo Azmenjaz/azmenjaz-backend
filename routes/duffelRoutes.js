@@ -22,9 +22,12 @@ const corporateAuth = async (req, res, next) => {
 router.post('/search', corporateAuth, async (req, res) => {
   try {
     const { origin, destination, date, returnDate = null, passengers = 1, cabinClass = 'economy' } = req.body;
-    if (!origin || !destination || !date)
-      return res.status(400).json({ success: false, error: 'origin, destination, date مطلوبة' });
+    if (!origin || !destination || !date) {
+      console.warn('[duffel/search] Missing required fields:', { origin, destination, date });
+      return res.status(400).json({ success: false, error: 'يرجى تحديد المطار والتاريخ' });
+    }
 
+    console.log('[duffel/search] Searching flights from', origin, 'to', destination, 'on', date);
     const result = await duffel.searchFlights({
       origin: origin.toUpperCase(),
       destination: destination.toUpperCase(),
@@ -34,21 +37,25 @@ router.post('/search', corporateAuth, async (req, res) => {
       cabinClass,
     });
 
+    console.log('[duffel/search] Found', result.offers?.length || 0, 'offers');
     res.json({ success: true, ...result });
   } catch (err) {
-    console.error('Duffel search error:', err.response?.data || err.message);
-    const msg = err.response?.data?.errors?.[0]?.message || err.message;
-    res.status(500).json({ success: false, error: msg });
+    console.error('[duffel/search] Error:', err.response?.data || err.message);
+    const msg = err.response?.data?.errors?.[0]?.message || err.message || 'فشل البحث عن الرحلات';
+    const status = err.response?.status || 500;
+    res.status(status).json({ success: false, error: msg });
   }
 });
 
 // ── GET /api/duffel/offer/:id ─────────────────────────────────────────────────
 router.get('/offer/:id', corporateAuth, async (req, res) => {
   try {
+    console.log('[duffel/offer] Getting offer:', req.params.id);
     const offer = await duffel.getOffer(req.params.id);
     res.json({ success: true, offer });
   } catch (err) {
-    const msg = err.response?.data?.errors?.[0]?.message || err.message;
+    console.error('[duffel/offer] Error:', err.response?.data || err.message);
+    const msg = err.response?.data?.errors?.[0]?.message || err.message || 'فشل جلب تفاصيل العرض';
     res.status(500).json({ success: false, error: msg });
   }
 });
@@ -57,17 +64,23 @@ router.get('/offer/:id', corporateAuth, async (req, res) => {
 router.post('/book', corporateAuth, async (req, res) => {
   try {
     const { offerId, passengers, offerAmount, offerCurrency, flightInfo } = req.body;
-    if (!offerId || !passengers?.length)
-      return res.status(400).json({ success: false, error: 'offerId والمسافرون مطلوبون' });
+    if (!offerId || !passengers?.length) {
+      console.warn('[duffel/book] Missing required fields:', { offerId: !!offerId, passengers: !!passengers?.length });
+      return res.status(400).json({ success: false, error: 'يرجى تحديد الرحلة والمسافرين' });
+    }
 
+    console.log('[duffel/book] Creating order for', passengers.length, 'passengers on offer:', offerId);
+    
     // Create order on Duffel
     const order = await duffel.createOrder({
       offerId,
       passengers,
       paymentAmount: offerAmount,
       paymentCurrency: offerCurrency || 'SAR',
-      offerPassengerIds: req.body.offerPassengerIds, // Pass the IDs from the frontend
+      offerPassengerIds: req.body.offerPassengerIds,
     });
+
+    console.log('[duffel/book] Order created:', order.booking_reference || order.id);
 
     // Save to portal_bookings
     try {
@@ -88,9 +101,9 @@ router.post('/book', corporateAuth, async (req, res) => {
           flightInfo?.compliant !== false,
         ]
       );
+      console.log('[duffel/book] Booking saved to database');
     } catch (dbErr) {
-      // Don't block the booking confirmation if DB save fails
-      console.error('Failed to save booking to DB:', dbErr.message);
+      console.error('[duffel/book] DB save failed (non-blocking):', dbErr.message);
     }
 
     res.json({
@@ -101,8 +114,8 @@ router.post('/book', corporateAuth, async (req, res) => {
       slices: order.slices,
     });
   } catch (err) {
-    console.error('Duffel book error:', err.response?.data || err.message);
-    const msg = err.response?.data?.errors?.[0]?.message || err.message;
+    console.error('[duffel/book] Error:', err.response?.data || err.message);
+    const msg = err.response?.data?.errors?.[0]?.message || err.message || 'فشل إتمام الحجز';
     res.status(500).json({ success: false, error: msg });
   }
 });
@@ -111,14 +124,19 @@ router.post('/book', corporateAuth, async (req, res) => {
 router.get('/suggestions', corporateAuth, async (req, res) => {
   try {
     const query = req.query.q;
-    console.log('[Autocomplete] Query received:', query);
-    if (!query) return res.json({ success: true, suggestions: [] });
+    console.log('[duffel/suggestions] Query:', query, 'from company:', req.user.companyId);
+    
+    if (!query) {
+      return res.json({ success: true, suggestions: [] });
+    }
     
     const suggestions = await duffel.suggestLocations(query);
-    console.log(`[Autocomplete] Found ${suggestions?.length || 0} suggestions for "${query}"`);
-    res.json({ success: true, suggestions });
+    console.log('[duffel/suggestions] Found', suggestions?.length || 0, 'matches for:', query);
+    
+    res.json({ success: true, suggestions: suggestions || [] });
   } catch (err) {
-    const msg = err.response?.data?.errors?.[0]?.message || err.message;
+    console.error('[duffel/suggestions] Error:', err.response?.data || err.message);
+    const msg = err.response?.data?.errors?.[0]?.message || err.message || 'فشل البحث عن المطارات';
     res.status(500).json({ success: false, error: msg });
   }
 });
