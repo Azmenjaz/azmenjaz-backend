@@ -340,7 +340,7 @@ router.get('/companies', adminAuth, async (req, res) => {
       result = await pool.query(`
         SELECT 
           c.id, c.name, c.email, c.phone,
-          c.${dateCol} AS created_at,
+          c."${dateCol}" AS created_at,
           COUNT(DISTINCT u.id) AS employee_count,
           COUNT(DISTINCT pb.id) AS booking_count,
           COALESCE(SUM(pb.price), 0) AS total_spend,
@@ -348,12 +348,12 @@ router.get('/companies', adminAuth, async (req, res) => {
         FROM companies c
         LEFT JOIN users u ON u.company_id = c.id
         LEFT JOIN portal_bookings pb ON pb.company_id = c.id
-        GROUP BY c.id, c.name, c.email, c.phone, c.${dateCol}
+        GROUP BY c.id, c.name, c.email, c.phone, c."${dateCol}"
         ORDER BY c.id DESC
       `);
     } catch (joinErr) {
       console.log('Query failed, using fallback:', joinErr.message);
-      result = await pool.query(`SELECT *, ${dateCol} as created_at FROM companies ORDER BY id DESC`);
+      result = await pool.query(`SELECT *, "${dateCol}" as created_at FROM companies ORDER BY id DESC`);
     }
 
     res.json({ success: true, count: result.rows.length, companies: result.rows });
