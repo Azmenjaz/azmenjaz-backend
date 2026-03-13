@@ -24,8 +24,8 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Serving static frontend files
-app.use(express.static(path.join(__dirname, '../Frontend/public_html')));
+// ⚠️ IMPORTANT: API routes MUST come BEFORE static files!
+// Otherwise, 404 responses will serve HTML from static folder
 
 // Routes
 app.use('/api/users', userRoutes);
@@ -38,9 +38,7 @@ app.use('/api/tp', tpRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/duffel', duffelRoutes);
 
-scheduleTask();
-
-// Health check
+// Health check (before static)
 app.get('/api/health', async (req, res) => {
   const health = {
     status: 'ok',
@@ -80,9 +78,13 @@ app.get('/api/health', async (req, res) => {
     health.services.whatsapp.status = 'not_configured (test mode)';
   }
 
-  const statusCode = health.status === 'ok' ? 200 : 503;
-  res.status(statusCode).json(health);
+  res.json(health);
 });
+
+// Serving static frontend files (AFTER all API routes!)
+app.use(express.static(path.join(__dirname, '../Frontend/public_html')));
+
+scheduleTask();
 
 // Test Amadeus (kept for compatibility)
 app.get('/api/test-amadeus', async (req, res) => {
