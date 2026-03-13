@@ -324,50 +324,36 @@ router.get('/recent-prices', adminAuth, async (req, res) => {
   }
 });
 
-// جلب جميع الشركات B2B مع إحصائياتها
+// جلب جميع الشركات B2B مع إحصائياتها الحقيقية
 router.get('/companies', adminAuth, async (req, res) => {
   try {
     let result;
+    // نتحقق أولاً من اسم حقل التاريخ في قاعدة البيانات
+    const dateColCheck = await pool.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'companies' AND column_name IN ('created_at', 'createdAt')
+    `);
+    const dateCol = dateColCheck.rows.length > 0 ? dateColCheck.rows[0].column_name : 'id'; // fallback to id if no date found
+
     try {
-      // الاستعلام الكامل مع employees وportal_bookings
+      // الاستعلام المحدث: نستخدم users بدلاً من employees و portal_bookings للإحصائيات
       result = await pool.query(`
         SELECT 
           c.id, c.name, c.email, c.phone,
-          NULL AS created_at,
-          COUNT(DISTINCT e.id) AS employee_count,
+          c.${dateCol} AS created_at,
+          COUNT(DISTINCT u.id) AS employee_count,
           COUNT(DISTINCT pb.id) AS booking_count,
-          COALESCE(SUM(pb.price), 0) AS total_spend
+          COALESCE(SUM(pb.price), 0) AS total_spend,
+          MAX(pb.created_at) AS last_booking_date
         FROM companies c
-        LEFT JOIN employees e ON e.company_id = c.id
+        LEFT JOIN users u ON u.company_id = c.id
         LEFT JOIN portal_bookings pb ON pb.company_id = c.id
-        GROUP BY c.id, c.name, c.email, c.phone
+        GROUP BY c.id, c.name, c.email, c.phone, c.${dateCol}
         ORDER BY c.id DESC
       `);
     } catch (joinErr) {
-      console.log('Full companies query failed, using fallback:', joinErr.message);
-      try {
-        // بدون portal_bookings
-        result = await pool.query(`
-          SELECT c.id, c.name, c.email, c.phone,
-            NULL AS created_at,
-            COUNT(DISTINCT e.id) AS employee_count,
-            0 AS booking_count, 0 AS total_spend
-          FROM companies c
-          LEFT JOIN employees e ON e.company_id = c.id
-          GROUP BY c.id, c.name, c.email, c.phone
-          ORDER BY c.id DESC
-        `);
-      } catch (empErr) {
-        console.log('Employees join failed, using basic query:', empErr.message);
-        // أبسط استعلام ممكن بدون أي JOIN
-        result = await pool.query(`
-          SELECT id, name, email, phone,
-            NULL AS created_at,
-            0 AS employee_count, 0 AS booking_count, 0 AS total_spend
-          FROM companies
-          ORDER BY id DESC
-        `);
-      }
+      console.log('Query failed, using fallback:', joinErr.message);
+      result = await pool.query(`SELECT *, ${dateCol} as created_at FROM companies ORDER BY id DESC`);
     }
 
     res.json({ success: true, count: result.rows.length, companies: result.rows });
@@ -535,6 +521,48 @@ router.put('/operations/:id', adminAuth, async (req, res) => {
       [status, id]
     );
     res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// جلب جميع الحجوزات المؤسسية (Global Monitoring)
+router.get('/bookings', adminAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        pb.*, 
+        c.name as company_name,
+        u.name as employee_name
+      FROM portal_bookings pb
+      LEFT JOIN companies c ON pb.company_id = c.id
+      LEFT JOIN users u ON pb.user_id = u.id
+      ORDER BY pb.created_at DESC
+    `);
+    res.json({ success: true, count: result.rows.length, bookings: result.rows });
+  } catch (error) {
+    console.error('Admin bookings error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// إنشاء توكن انتحال شخصية (Impersonation) للدخول المباشر للبوابة
+router.post('/impersonate/:companyId', adminAuth, async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    
+    // نتحقق من وجود الشركة
+    const co = await pool.query('SELECT name FROM companies WHERE id = $1', [companyId]);
+    if (co.rows.length === 0) return res.status(404).json({ success: false, error: 'الشركة غير موجودة' });
+
+    // نولد توكن خاص (يمكن أن يكون JWT عادي مع صلاحية admin=true)
+    const token = jwt.sign(
+      { companyId: parseInt(companyId), isAdminImpersonation: true, adminName: req.admin.username },
+      process.env.JWT_SECRET || 'safarsmart_secret_key',
+      { expiresIn: '1h' }
+    );
+
+    res.json({ success: true, token, portalUrl: `/portal/index.html?impersonate=true&token=${token}` });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
