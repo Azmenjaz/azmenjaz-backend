@@ -63,6 +63,14 @@ async function createCompany(data) {
     return await db.insert(schema.companies).values(data).returning();
 }
 
+async function updateCompanyProfile(companyId, data) {
+    const [updated] = await db.update(schema.companies)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(schema.companies.id, companyId))
+        .returning();
+    return updated;
+}
+
 async function getCompanyStats(companyId) {
     const flights = await db.select().from(schema.flightBookings).where(eq(schema.flightBookings.companyId, companyId));
     const hotels = await db.select().from(schema.hotelBookings).where(eq(schema.hotelBookings.companyId, companyId));
@@ -198,6 +206,7 @@ module.exports = {
     getCompanyById,
     getCompanyByEmail,
     createCompany,
+    updateCompanyProfile,
     getCompanyStats,
     getFlightBookingsByCompany,
     getHotelBookingsByCompany,
