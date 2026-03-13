@@ -68,6 +68,22 @@ const initTables = async () => {
       )
     `);
     console.log('✅ Portal bookings table ready');
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS operations_requests (
+        id SERIAL PRIMARY KEY,
+        company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        priority VARCHAR(20) DEFAULT 'medium',
+        subject VARCHAR(255) NOT NULL,
+        description TEXT,
+        status VARCHAR(20) DEFAULT 'pending',
+        metadata TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Operations requests table ready');
   } catch (err) {
     console.error('❌ Error initializing tables:', err.message);
   }
@@ -147,7 +163,7 @@ router.get('/stats', adminAuth, async (req, res) => {
       LIMIT 10
     `);
 
-    // إحصائيات النقرات
+    // إحصائيات النقرات (نحتفظ بها بالخلفية للآن ولكن سنبرز الـ TTV)
     const clicksResult = await pool.query(`
       SELECT 
         COUNT(*) as count, 
@@ -155,8 +171,19 @@ router.get('/stats', adminAuth, async (req, res) => {
       FROM booking_clicks
     `);
 
+    // إجمالي حجم مبيعات الشركات (TTV)
+    const ttvResult = await pool.query(`
+      SELECT COALESCE(SUM(price), 0) as total_ttv 
+      FROM portal_bookings
+    `);
+
+    // عدد الطلبات اليدوية المعلقة
+    const opsCount = await pool.query(`
+      SELECT COUNT(*) as count FROM operations_requests WHERE status = 'pending'
+    `);
+
     const clicksCount = clicksResult.rows[0].count;
-    const totalRevenue = clicksResult.rows[0].total_revenue;
+    const totalTTV = ttvResult.rows[0].total_ttv;
 
     const recentClicks = await pool.query(`
       SELECT * FROM booking_clicks 
@@ -172,7 +199,8 @@ router.get('/stats', adminAuth, async (req, res) => {
         totalAlerts: parseInt(totalAlertsCount.rows[0].count),
         totalPrices: parseInt(pricesCount.rows[0].count),
         totalClicks: parseInt(clicksCount),
-        totalRevenue: parseFloat(totalRevenue)
+        totalTTV: parseFloat(totalTTV),
+        pendingOps: parseInt(opsCount.rows[0].count)
       },
       recentAlerts: recentAlerts.rows,
       recentClicks: recentClicks.rows
@@ -475,6 +503,38 @@ router.delete('/companies/:id', adminAuth, async (req, res) => {
     await pool.query('DELETE FROM companies WHERE id = $1', [id]);
 
     res.json({ success: true, message: 'تم حذف الشركة وإلغاء جميع جلساتها بنجاح' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// --- عمليات الإدارة (Operations) ---
+
+// جلب جميع طلبات العمليات
+router.get('/operations', adminAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT op.*, c.name as company_name 
+      FROM operations_requests op
+      LEFT JOIN companies c ON op.company_id = c.id
+      ORDER BY op.created_at DESC
+    `);
+    res.json({ success: true, count: result.rows.length, operations: result.rows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// تحديث حالة طلب
+router.put('/operations/:id', adminAuth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const { id } = req.params;
+    await pool.query(
+      'UPDATE operations_requests SET status = $1, updated_at = NOW() WHERE id = $2',
+      [status, id]
+    );
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
