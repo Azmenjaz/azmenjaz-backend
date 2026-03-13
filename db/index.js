@@ -192,10 +192,18 @@ async function getPortalBookingsByCompany(companyId) {
 
 async function createPortalBooking(data) {
     const result = await pool.query(
-        `INSERT INTO portal_bookings (company_id, employee_name, origin, destination, travel_date, price, cabin, booking_ref, compliant, booking_type, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        `INSERT INTO portal_bookings (company_id, employee_name, origin, destination, travel_date, price, cabin, booking_ref, compliant, booking_type, status, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
          RETURNING *`,
-        [data.companyId, data.employeeName, data.origin, data.destination, data.travelDate, data.price, data.cabin, data.bookingRef, data.compliant, data.bookingType]
+        [data.companyId, data.employeeName, data.origin, data.destination, data.travelDate, data.price, data.cabin, data.bookingRef, data.compliant, data.bookingType, data.status || 'confirmed']
+    );
+    return result.rows[0];
+}
+
+async function updatePortalBookingStatus(id, status, companyId) {
+    const result = await pool.query(
+        `UPDATE portal_bookings SET status = $1, updated_at = NOW() WHERE id = $2 AND company_id = $3 RETURNING *`,
+        [status, id, companyId]
     );
     return result.rows[0];
 }
@@ -225,7 +233,8 @@ module.exports = {
     getTravelPolicy,
     saveTravelPolicy,
     getPortalBookingsByCompany,
-    createPortalBooking
+    createPortalBooking,
+    updatePortalBookingStatus
 };
 
 
