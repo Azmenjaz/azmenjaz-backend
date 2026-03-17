@@ -5,13 +5,7 @@ const crypto = require('crypto');
 
 // ─── Auth Session Store (DB-backed, survives restarts) ───────────────────────
 const { saveSession, getSession, deleteSession, TOKEN_TTL_MS } = require('../utils/authStore');
-
-// Simple password hashing with SHA-256 + salt (no external deps)
-// For higher security, install and use bcrypt instead
-function hashPassword(password) {
-    const salt = process.env.PASSWORD_SALT || 'safarsmart_secret_2026';
-    return crypto.createHmac('sha256', salt).update(password).digest('hex');
-}
+const { hashPassword, verifyPassword } = require('../utils/password');
 
 function generateToken() {
     return crypto.randomBytes(32).toString('hex');
@@ -53,7 +47,7 @@ router.post('/register', async (req, res) => {
         const existing = await db.getCompanyByEmail(email);
         if (existing) return res.status(400).json({ success: false, error: 'البريد الإلكتروني مسجل بالفعل' });
 
-        const hashedPassword = hashPassword(password);
+        const hashedPassword = await hashPassword(password);
         const [company] = await db.createCompany({ name, email, password: hashedPassword, phone });
 
         const token = generateToken();
@@ -73,23 +67,43 @@ router.post('/login', async (req, res) => {
         if (!email || !password)
             return res.status(400).json({ success: false, error: 'البريد الإلكتروني وكلمة المرور مطلوبان' });
 
-        const hashedInput = hashPassword(password);
-
         // 1. Check if Company Admin
         const company = await db.getCompanyByEmail(email);
-        if (company && company.password === hashedInput) {
-            const token = generateToken();
-            await saveSession(token, { companyId: company.id, name: company.name, email: company.email, role: 'Admin' });
-            return res.json({ success: true, token, name: company.name, companyId: company.id, role: 'Admin' });
+        if (company) {
+            const { ok, needsRehash } = await verifyPassword(password, company.password);
+            if (ok) {
+                if (needsRehash) {
+                    try {
+                        const newHash = await hashPassword(password);
+                        await db.updateCompanyPassword(company.id, newHash);
+                    } catch (e) {
+                        console.warn('Rehash company password failed:', e.message);
+                    }
+                }
+                const token = generateToken();
+                await saveSession(token, { companyId: company.id, name: company.name, email: company.email, role: 'Admin' });
+                return res.json({ success: true, token, name: company.name, companyId: company.id, role: 'Admin' });
+            }
         }
 
         // 2. Check if Employee
         const employee = await db.getEmployeeByEmail(email);
-        if (employee && employee.password === hashedInput) {
-            const token = generateToken();
-            const companyId = employee.company_id || employee.companyId;
-            await saveSession(token, { companyId, employeeId: employee.id, name: employee.name, email: employee.email, role: 'Employee' });
-            return res.json({ success: true, token, name: employee.name, companyId, role: 'Employee' });
+        if (employee && employee.password) {
+            const { ok, needsRehash } = await verifyPassword(password, employee.password);
+            if (ok) {
+                if (needsRehash) {
+                    try {
+                        const newHash = await hashPassword(password);
+                        await db.updateEmployeePassword(employee.id, newHash);
+                    } catch (e) {
+                        console.warn('Rehash employee password failed:', e.message);
+                    }
+                }
+                const token = generateToken();
+                const companyId = employee.company_id || employee.companyId;
+                await saveSession(token, { companyId, employeeId: employee.id, name: employee.name, email: employee.email, role: 'Employee' });
+                return res.json({ success: true, token, name: employee.name, companyId, role: 'Employee' });
+            }
         }
 
         return res.status(401).json({ success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
@@ -284,7 +298,7 @@ router.post('/employees', corporateAuth, adminOnly, async (req, res) => {
             }
         }
 
-        const hashedPassword = hashPassword(password);
+        const hashedPassword = await hashPassword(password);
         const [employee] = await db.createEmployee({
             name,
             email,

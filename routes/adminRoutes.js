@@ -2,23 +2,20 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
 const crypto = require('crypto');
-const { invalidateCompanyTokens } = require('../utils/authStore');
+const { invalidateCompanyTokens, saveAdminSession, getAdminSession, deleteAdminSession } = require('../utils/authStore');
+const { hashPassword, verifyPassword } = require('../utils/password');
 
-// نفس طريقة التشفير المستخدمة في corporateRoutes
-function hashPassword(password) {
-  const salt = process.env.PASSWORD_SALT || 'safarsmart_secret_2026';
-  return crypto.createHmac('sha256', salt).update(password).digest('hex');
-}
-
-// ─── Admin Session Store (in-memory) ──────────────────────────────────────────
-const adminSessions = new Set();
-
-const adminAuth = (req, res, next) => {
+const adminAuth = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token || !adminSessions.has(token)) {
-    return res.status(401).json({ success: false, error: 'غير مصرح' });
+  if (!token) return res.status(401).json({ success: false, error: 'غير مصرح' });
+  try {
+    const session = await getAdminSession(token);
+    if (!session) return res.status(401).json({ success: false, error: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى' });
+    next();
+  } catch (err) {
+    console.error('adminAuth error:', err.message);
+    return res.status(500).json({ success: false, error: 'خطأ في التحقق من الجلسة' });
   }
-  next();
 };
 
 // Initialize Tables
@@ -112,6 +109,16 @@ function isAdminPasswordAllowed(password) {
   return password && password !== DEFAULT_ADMIN_PASSWORD;
 }
 
+// Verify admin password: prefer bcrypt hash from env (ADMIN_PASSWORD_HASH), else plain ADMIN_PASSWORD
+async function verifyAdminPassword(password) {
+  const hashFromEnv = process.env.ADMIN_PASSWORD_HASH;
+  if (hashFromEnv) {
+    const { ok } = await verifyPassword(password, hashFromEnv);
+    return ok;
+  }
+  return password === ADMIN_PASSWORD;
+}
+
 // تتبع نقرة حجز (Public)
 router.post('/track-click', async (req, res) => {
   try {
@@ -136,17 +143,18 @@ router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    if (!isAdminPasswordAllowed(ADMIN_PASSWORD)) {
-      console.error('Admin login rejected: ADMIN_PASSWORD must be set in production');
+    if (!process.env.ADMIN_PASSWORD_HASH && !isAdminPasswordAllowed(ADMIN_PASSWORD)) {
+      console.error('Admin login rejected: set ADMIN_PASSWORD or ADMIN_PASSWORD_HASH in production');
       return res.status(503).json({
         success: false,
         error: 'تم تعطيل تسجيل الدخول حتى يتم ضبط كلمة مرور الأدمن في البيئة'
       });
     }
 
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    const passwordOk = await verifyAdminPassword(password);
+    if (username === ADMIN_USERNAME && passwordOk) {
       const token = crypto.randomBytes(32).toString('hex');
-      adminSessions.add(token);
+      await saveAdminSession(token);
       res.json({
         success: true,
         message: 'تم تسجيل الدخول بنجاح',
@@ -159,8 +167,16 @@ router.post('/login', async (req, res) => {
       });
     }
   } catch (error) {
+    console.error('Admin login error:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// تسجيل خروج Admin
+router.post('/logout', adminAuth, async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token) await deleteAdminSession(token);
+  res.json({ success: true, message: 'تم تسجيل الخروج بنجاح' });
 });
 
 // إحصائيات Dashboard
@@ -405,7 +421,7 @@ router.post('/companies', adminAuth, async (req, res) => {
     if (existing.rows.length > 0)
       return res.status(400).json({ success: false, error: 'البريد الإلكتروني مسجل بالفعل' });
 
-    const hashedPassword = hashPassword(password);
+    const hashedPassword = await hashPassword(password);
 
     // نتحقق من أعمدة الجدول الفعلية أولاً
     const colCheck = await pool.query(`
