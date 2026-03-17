@@ -71,6 +71,12 @@ async function updateCompanyProfile(companyId, data) {
     return updated;
 }
 
+async function updateCompanyPassword(companyId, hashedPassword) {
+    await db.update(schema.companies)
+        .set({ password: hashedPassword, updatedAt: new Date() })
+        .where(eq(schema.companies.id, companyId));
+}
+
 async function getCompanyStats(companyId) {
     const flights = await db.select().from(schema.flightBookings).where(eq(schema.flightBookings.companyId, companyId));
     const hotels = await db.select().from(schema.hotelBookings).where(eq(schema.hotelBookings.companyId, companyId));
@@ -142,6 +148,10 @@ async function deleteEmployee(id, companyId) {
                 eq(schema.users.companyId, companyId)
             ));
     }
+}
+
+async function updateEmployeePassword(employeeId, hashedPassword) {
+    await pool.query('UPDATE employees SET password = $1 WHERE id = $2', [hashedPassword, employeeId]);
 }
 
 // ─── Travel Policy ───────────────────────────────────────────
@@ -236,6 +246,8 @@ module.exports = {
     getEmployeeByEmail,
     createEmployee,
     deleteEmployee,
+    updateCompanyPassword,
+    updateEmployeePassword,
     getTravelPolicy,
     saveTravelPolicy,
     getPortalBookingsByCompany,
