@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+const { requirePasswordSaltInProduction } = require('./utils/password');
 const { scheduleTask } = require('./cron/priceChecker');
 const userRoutes = require('./routes/userRoutes');
 const alertRoutes = require('./routes/alertRoutes');
@@ -18,6 +20,16 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// In production, require PASSWORD_SALT for legacy password verification
+if (process.env.NODE_ENV === 'production') {
+  try {
+    requirePasswordSaltInProduction();
+  } catch (e) {
+    console.error(e.message);
+    process.exit(1);
+  }
+}
+
 // Middleware — in production set CORS_ORIGINS (comma-separated) to restrict origins
 const corsOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
@@ -27,6 +39,18 @@ app.use(cors({
   credentials: corsOrigins !== '*',
 }));
 app.use(express.json());
+
+// Rate limit auth endpoints (brute-force protection)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, error: 'محاولات كثيرة، يرجى المحاولة لاحقاً' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/corporate/login', authLimiter);
+app.use('/api/corporate/register', authLimiter);
+app.use('/api/admin/login', authLimiter);
 
 // ⚠️ IMPORTANT: API routes MUST come BEFORE static files!
 // Otherwise, 404 responses will serve HTML from static folder
