@@ -12,7 +12,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const tpRoutes = require('./routes/travelpayoutsRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const duffelRoutes = require('./routes/duffelRoutes');
-const AmadeusService = require('./services/amadeusService');
+// const AmadeusService = require('./services/amadeusService'); // Amadeus disabled for now
 const path = require('path');
 
 const app = express();
@@ -45,7 +45,7 @@ app.get('/api/health', async (req, res) => {
     timestamp: new Date().toISOString(),
     services: {
       database: { status: 'unknown' },
-      amadeus: { status: 'unknown' },
+      amadeus: { status: 'disabled' },
       whatsapp: { status: 'unknown' }
     }
   };
@@ -59,16 +59,6 @@ app.get('/api/health', async (req, res) => {
     health.status = 'error';
     health.services.database.status = 'disconnected';
     health.services.database.error = err.message;
-  }
-
-  // Check Amadeus
-  try {
-    const amadeusResult = await AmadeusService.testConnection();
-    health.services.amadeus.status = amadeusResult.success ? 'connected' : 'error';
-    if (!amadeusResult.success) health.services.amadeus.error = amadeusResult.error;
-  } catch (err) {
-    health.services.amadeus.status = 'error';
-    health.services.amadeus.error = err.message;
   }
 
   // Check WhatsApp (Ultramsg)
@@ -86,155 +76,61 @@ app.use(express.static(path.join(__dirname, '../Frontend/public_html')));
 
 scheduleTask();
 
-// Test Amadeus (kept for compatibility)
-app.get('/api/test-amadeus', async (req, res) => {
-  try {
-    console.log('Testing Amadeus API...');
-    const result = await AmadeusService.testConnection();
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+// Amadeus endpoints disabled (placeholder responses)
+app.get('/api/test-amadeus', (req, res) => {
+  return res.status(503).json({
+    success: false,
+    error: 'Amadeus is temporarily disabled on this environment.'
+  });
 });
 
-// Search flights
-app.post('/api/flights/search', async (req, res) => {
-  try {
-    const { originCode, destinationCode, departureDate, returnDate, travelClass } = req.body;
-
-    if (!originCode || !destinationCode || !departureDate) {
-      return res.status(400).json({ success: false, error: 'Missing data' });
-    }
-
-    const result = await AmadeusService.searchFlights(
-      originCode,
-      destinationCode,
-      departureDate,
-      returnDate,
-      travelClass
-    );
-
-    if (!result.success) {
-      return res.status(500).json(result);
-    }
-
-    const flights = result.flights.map(flight => ({
-      ...flight,
-      bookingLink: AmadeusService.getBookingLink(flight.airlineCode)
-    }));
-
-    res.json({
-      success: true,
-      flights: flights,
-      count: flights.length
-    });
-
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.post('/api/flights/search', (req, res) => {
+  return res.status(503).json({
+    success: false,
+    error: 'Amadeus flight search is temporarily disabled.'
+  });
 });
 
-// Confirm Price
-app.post('/api/flights/confirm-price', async (req, res) => {
-  try {
-    const { flightOffer } = req.body;
-    if (!flightOffer) {
-      return res.status(400).json({ success: false, error: 'Missing flight offer' });
-    }
-
-    const result = await AmadeusService.confirmPrice(flightOffer);
-    if (!result.success) {
-      return res.status(500).json(result);
-    }
-
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.post('/api/flights/confirm-price', (req, res) => {
+  return res.status(503).json({
+    success: false,
+    error: 'Amadeus confirm price is temporarily disabled.'
+  });
 });
 
-// Create Order (Book)
-app.post('/api/flights/book', async (req, res) => {
-  try {
-    const { flightOffer, travelers } = req.body;
-    if (!flightOffer || !travelers) {
-      return res.status(400).json({ success: false, error: 'Missing flight offer or travelers data' });
-    }
-
-    const result = await AmadeusService.createOrder(flightOffer, travelers);
-    if (!result.success) {
-      return res.status(500).json(result);
-    }
-
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.post('/api/flights/book', (req, res) => {
+  return res.status(503).json({
+    success: false,
+    error: 'Amadeus booking is temporarily disabled.'
+  });
 });
 
-// Get price
-app.post('/api/flights/price', async (req, res) => {
-  try {
-    const { originCode, destinationCode, departureDate } = req.body;
-
-    if (!originCode || !destinationCode || !departureDate) {
-      return res.status(400).json({ success: false, error: 'Missing data' });
-    }
-
-    const price = await AmadeusService.getFlightPrice(originCode, destinationCode, departureDate);
-
-    if (!price) {
-      return res.json({ success: false, error: 'No flights found' });
-    }
-
-    res.json({ success: true, price: price });
-
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.post('/api/flights/price', (req, res) => {
+  return res.status(503).json({
+    success: false,
+    error: 'Amadeus pricing is temporarily disabled.'
+  });
 });
 
-// Inspiration Search Endpoint
-app.get('/api/flights/inspiration', async (req, res) => {
-  const { origin } = req.query;
-  if (!origin) {
-    return res.status(400).json({ success: false, error: 'Origin is required' });
-  }
-
-  try {
-    const result = await AmadeusService.getCheapestDestinations(origin);
-    if (result.success) {
-      res.json(result);
-    } else {
-      res.status(500).json(result);
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.get('/api/flights/inspiration', (req, res) => {
+  return res.status(503).json({
+    success: false,
+    error: 'Amadeus inspiration is temporarily disabled.'
+  });
 });
 
-// Search locations/cities
-app.get('/api/locations/search', async (req, res) => {
-  try {
-    const { keyword } = req.query;
-    if (!keyword) return res.status(400).json({ success: false, error: 'Keyword is required' });
-    const result = await AmadeusService.searchCities(keyword);
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.get('/api/locations/search', (req, res) => {
+  return res.status(503).json({
+    success: false,
+    error: 'Amadeus locations search is temporarily disabled.'
+  });
 });
 
-// Get airport performance
-app.get('/api/airports/performance', async (req, res) => {
-  try {
-    const { airportCode } = req.query;
-    if (!airportCode) return res.status(400).json({ success: false, error: 'Airport code is required' });
-    const result = await AmadeusService.getAirportPerformance(airportCode);
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+app.get('/api/airports/performance', (req, res) => {
+  return res.status(503).json({
+    success: false,
+    error: 'Amadeus airport performance is temporarily disabled.'
+  });
 });
 
 // 404 handler
