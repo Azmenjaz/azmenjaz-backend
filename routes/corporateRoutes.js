@@ -33,6 +33,13 @@ const corporateAuth = async (req, res, next) => {
     }
 };
 
+const adminOnly = (req, res, next) => {
+    if (req.user && req.user.role === 'Employee') {
+        return res.status(403).json({ success: false, error: 'غير مصرح - هذه الصلاحية لمديري الشركات فقط' });
+    }
+    next();
+};
+
 // ─── REGISTER ────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
     try {
@@ -50,9 +57,9 @@ router.post('/register', async (req, res) => {
         const [company] = await db.createCompany({ name, email, password: hashedPassword, phone });
 
         const token = generateToken();
-        await saveSession(token, { companyId: company.id, name: company.name, email: company.email });
+        await saveSession(token, { companyId: company.id, name: company.name, email: company.email, role: 'Admin' });
 
-        res.status(201).json({ success: true, token, name: company.name, companyId: company.id });
+        res.status(201).json({ success: true, token, name: company.name, companyId: company.id, role: 'Admin' });
     } catch (error) {
         console.error('Corporate register error:', error.message);
         res.status(500).json({ success: false, error: error.message });
@@ -66,16 +73,26 @@ router.post('/login', async (req, res) => {
         if (!email || !password)
             return res.status(400).json({ success: false, error: 'البريد الإلكتروني وكلمة المرور مطلوبان' });
 
-        const company = await db.getCompanyByEmail(email);
         const hashedInput = hashPassword(password);
 
-        if (!company || company.password !== hashedInput)
-            return res.status(401).json({ success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
+        // 1. Check if Company Admin
+        const company = await db.getCompanyByEmail(email);
+        if (company && company.password === hashedInput) {
+            const token = generateToken();
+            await saveSession(token, { companyId: company.id, name: company.name, email: company.email, role: 'Admin' });
+            return res.json({ success: true, token, name: company.name, companyId: company.id, role: 'Admin' });
+        }
 
-        const token = generateToken();
-        await saveSession(token, { companyId: company.id, name: company.name, email: company.email });
+        // 2. Check if Employee
+        const employee = await db.getEmployeeByEmail(email);
+        if (employee && employee.password === hashedInput) {
+            const token = generateToken();
+            const companyId = employee.company_id || employee.companyId;
+            await saveSession(token, { companyId, employeeId: employee.id, name: employee.name, email: employee.email, role: 'Employee' });
+            return res.json({ success: true, token, name: employee.name, companyId, role: 'Employee' });
+        }
 
-        res.json({ success: true, token, name: company.name, companyId: company.id });
+        return res.status(401).json({ success: false, error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' });
     } catch (error) {
         console.error('Corporate login error:', error.message);
         res.status(500).json({ success: false, error: error.message });
@@ -208,6 +225,13 @@ router.put('/portal-bookings/:id/status', corporateAuth, async (req, res) => {
 router.post('/portal-bookings', corporateAuth, async (req, res) => {
     try {
         const { employeeName, origin, destination, travelDate, price, cabin, bookingRef, compliant, bookingType } = req.body;
+        
+        // If employee and non-compliant, auto-set to pending
+        let status = 'confirmed';
+        if (req.user.role === 'Employee' && compliant === false) {
+            status = 'pending';
+        }
+
         const booking = await db.createPortalBooking({
             companyId: req.user.companyId,
             employeeName,
@@ -219,6 +243,7 @@ router.post('/portal-bookings', corporateAuth, async (req, res) => {
             bookingRef: bookingRef || '',
             compliant: compliant !== false,
             bookingType: bookingType || 'flight',
+            status 
         });
         res.status(201).json({ success: true, booking });
     } catch (error) {
@@ -227,7 +252,7 @@ router.post('/portal-bookings', corporateAuth, async (req, res) => {
 });
 
 // ─── EMPLOYEES ───────────────────────────────────────────────
-router.get('/employees', corporateAuth, async (req, res) => {
+router.get('/employees', corporateAuth, adminOnly, async (req, res) => {
     try {
         const employees = await db.getEmployeesByCompany(req.user.companyId);
         res.json({ success: true, employees });
@@ -236,11 +261,33 @@ router.get('/employees', corporateAuth, async (req, res) => {
     }
 });
 
-router.post('/employees', corporateAuth, async (req, res) => {
+router.post('/employees', corporateAuth, adminOnly, async (req, res) => {
     try {
-        const { name, email, title, passport, permissions } = req.body;
+        const { name, email, password, title, passport, permissions } = req.body;
+        if (!name || !email || !password) {
+            return res.status(400).json({ success: false, error: 'الاسم والبريد وكلمة المرور مطلوبة' });
+        }
+
+        // تحقق من أن بريد الموظف من نفس نطاق الشركة (إن وُجد allowed_domain)
+        const company = await db.getCompanyById(req.user.companyId);
+        if (company && company.allowedDomain) {
+            const emailDomain = (email.split('@')[1] || '').toLowerCase();
+            const allowed = company.allowedDomain.toLowerCase();
+            if (emailDomain !== allowed) {
+                return res.status(400).json({
+                    success: false,
+                    error: `يجب أن يكون بريد الموظف من نفس نطاق الشركة (${allowed})`
+                });
+            }
+        }
+
+        const hashedPassword = hashPassword(password);
         const [employee] = await db.createEmployee({
-            name, email, title, passport,
+            name,
+            email,
+            password: hashedPassword,
+            title,
+            passport,
             permissions: permissions || 'Employee',
             companyId: req.user.companyId
         });
@@ -250,7 +297,7 @@ router.post('/employees', corporateAuth, async (req, res) => {
     }
 });
 
-router.delete('/employees/:id', corporateAuth, async (req, res) => {
+router.delete('/employees/:id', corporateAuth, adminOnly, async (req, res) => {
     try {
         await db.deleteEmployee(parseInt(req.params.id), req.user.companyId);
         res.json({ success: true, message: 'تم حذف الموظف بنجاح' });
