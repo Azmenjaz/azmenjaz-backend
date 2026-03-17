@@ -36,11 +36,24 @@ async function initSessionsTable() {
     // Clean up expired sessions on startup
     await pool.query(`DELETE FROM company_sessions WHERE expires_at < NOW()`);
     console.log('✅ Company sessions table ready');
+
+    // Admin sessions table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_sessions (
+        token TEXT PRIMARY KEY,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await pool.query(`DELETE FROM admin_sessions WHERE expires_at < NOW()`);
+    console.log('✅ Admin sessions table ready');
   } catch (err) {
     console.error('❌ Failed to init sessions table:', err.message);
   }
 }
 initSessionsTable();
+
+const ADMIN_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // ── Save a session ─────────────────────────────────────────────────────────────
 async function saveSession(token, user) {
@@ -91,10 +104,36 @@ async function invalidateCompanyTokens(companyId) {
   return result.rowCount;
 }
 
+// ── Admin sessions (DB-backed) ───────────────────────────────────────────────
+async function saveAdminSession(token) {
+  const expiresAt = new Date(Date.now() + ADMIN_TOKEN_TTL_MS);
+  await pool.query(
+    `INSERT INTO admin_sessions (token, expires_at) VALUES ($1, $2)
+     ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at`,
+    [token, expiresAt]
+  );
+}
+
+async function getAdminSession(token) {
+  if (!token) return null;
+  const result = await pool.query(
+    `SELECT 1 FROM admin_sessions WHERE token = $1 AND expires_at > NOW()`,
+    [token]
+  );
+  return result.rows.length > 0 ? { ok: true } : null;
+}
+
+async function deleteAdminSession(token) {
+  await pool.query(`DELETE FROM admin_sessions WHERE token = $1`, [token]);
+}
+
 module.exports = {
   TOKEN_TTL_MS,
   saveSession,
   getSession,
   deleteSession,
   invalidateCompanyTokens,
+  saveAdminSession,
+  getAdminSession,
+  deleteAdminSession,
 };
