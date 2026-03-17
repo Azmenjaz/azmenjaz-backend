@@ -17,9 +17,22 @@ async function initSessionsTable() {
         company_name TEXT,
         company_email TEXT,
         expires_at TIMESTAMP NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT NOW(),
+        role TEXT DEFAULT 'Admin',
+        employee_id INTEGER
       )
     `);
+    // Add role and employee_id if missing (migration for existing installs)
+    await pool.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'company_sessions' AND column_name = 'role') THEN
+          ALTER TABLE company_sessions ADD COLUMN role TEXT DEFAULT 'Admin';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'company_sessions' AND column_name = 'employee_id') THEN
+          ALTER TABLE company_sessions ADD COLUMN employee_id INTEGER;
+        END IF;
+      END $$
+    `).catch(() => {});
     // Clean up expired sessions on startup
     await pool.query(`DELETE FROM company_sessions WHERE expires_at < NOW()`);
     console.log('✅ Company sessions table ready');
@@ -32,11 +45,13 @@ initSessionsTable();
 // ── Save a session ─────────────────────────────────────────────────────────────
 async function saveSession(token, user) {
   const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
+  const role = user.role || 'Admin';
+  const employeeId = user.employeeId ?? null;
   await pool.query(
-    `INSERT INTO company_sessions (token, company_id, company_name, company_email, expires_at)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at`,
-    [token, user.companyId, user.name, user.email, expiresAt]
+    `INSERT INTO company_sessions (token, company_id, company_name, company_email, expires_at, role, employee_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (token) DO UPDATE SET expires_at = EXCLUDED.expires_at, role = EXCLUDED.role, employee_id = EXCLUDED.employee_id`,
+    [token, user.companyId, user.name, user.email, expiresAt, role, employeeId]
   );
 }
 
@@ -54,6 +69,8 @@ async function getSession(token) {
       companyId: row.company_id,
       name: row.company_name,
       email: row.company_email,
+      role: row.role || 'Admin',
+      employeeId: row.employee_id != null ? row.employee_id : undefined,
     },
     expiresAt: new Date(row.expires_at).getTime(),
   };
