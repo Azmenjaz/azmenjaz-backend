@@ -32,6 +32,8 @@ const companies = pgTable("companies", {
     employeeCount: integer("employeeCount"),
     subscriptionPlan: varchar("subscriptionPlan", { length: 50 }).default("basic"),
     isActive: boolean("isActive").default(true),
+    // النطاق المسموح لبريد موظفي الشركة (example.com)
+    allowedDomain: varchar("allowed_domain", { length: 255 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
