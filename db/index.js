@@ -114,22 +114,16 @@ async function createEmployee(data) {
     // نستخدم raw SQL لتجنب مشكلة openid في جدول users
     try {
         const result = await pool.query(
-            `INSERT INTO employees (company_id, name, email, job_title, passport, permissions, status, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, 'Active', NOW())
+            `INSERT INTO employees (company_id, name, email, password, job_title, passport, permissions, status, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'Active', NOW())
      RETURNING *`,
-            [data.companyId, data.name, data.email, data.title || null, data.passport || null, data.permissions || 'Basic']
+            [data.companyId, data.name, data.email, data.password || null, data.title || null, data.passport || null, data.permissions || 'Basic']
         );
         return result.rows || [{ name: data.name, email: data.email }];
     } catch (err) {
-        // إذا ما في جدول employees، نحاول نضيف لـ users مع openid
-        return await db.insert(schema.users).values({
-            name: data.name,
-            email: data.email,
-            companyId: data.companyId,
-            role: 'employee',
-            openId: 'emp_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now(),
-            loginMethod: 'manual'
-        }).returning();
+        // في البيئات الحالية نعتمد حصراً على جدول employees
+        console.error('createEmployee error (employees table):', err.message);
+        throw err;
     }
 }
 
@@ -208,6 +202,17 @@ async function updatePortalBookingStatus(id, status, companyId) {
     return result.rows[0];
 }
 
+async function getEmployeeByEmail(email) {
+    try {
+        const result = await pool.query('SELECT * FROM employees WHERE email = $1 LIMIT 1', [email]);
+        return result.rows[0];
+    } catch {
+        // Fallback to users table if employees table query fails
+        const result = await db.select().from(schema.users).where(eq(schema.users.email, email)).limit(1);
+        return result[0];
+    }
+}
+
 module.exports = {
     db,
     ...schema,
@@ -228,6 +233,7 @@ module.exports = {
     getPassengersByBooking,
     createPassenger,
     getEmployeesByCompany,
+    getEmployeeByEmail,
     createEmployee,
     deleteEmployee,
     getTravelPolicy,
