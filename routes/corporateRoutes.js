@@ -119,6 +119,9 @@ router.get('/dashboard', corporateAuth, async (req, res) => {
         const compliant = bookings.filter(b => b.compliant).length;
         const complianceRate = bookings.length ? Math.round((compliant / bookings.length) * 100) : 100;
 
+        // Do not expose password hash to client
+        if (company) delete company.password;
+
         res.json({
             success: true,
             data: {

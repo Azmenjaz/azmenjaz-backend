@@ -44,11 +44,22 @@ const initTables = async () => {
         company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
         name VARCHAR(200) NOT NULL,
         email VARCHAR(200),
+        password VARCHAR(255),
         permissions VARCHAR(50) DEFAULT 'Basic',
         status VARCHAR(20) DEFAULT 'Active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    
+    // Attempt to add password column to existing employers table if it doesn't exist
+    try {
+      await pool.query('ALTER TABLE employees ADD COLUMN password VARCHAR(255)');
+      console.log('✅ Added password column to employees table');
+    } catch (e) {
+      if (e.code !== '42701') { // 42701 is duplicate_column error
+        console.error('⚠️ Could not add password column:', e.message);
+      }
+    }
     console.log('✅ Employees table ready');
 
     await pool.query(`
@@ -90,9 +101,16 @@ const initTables = async () => {
 };
 initTables();
 
-// ⭐ بيانات الأدمن (يمكن نقلها لـ Environment Variables)
+// ⭐ Admin credentials — in production, set ADMIN_USERNAME and ADMIN_PASSWORD in env
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Azmenjaz@2026';
+const DEFAULT_ADMIN_PASSWORD = 'Azmenjaz@2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+
+// In production, do not allow the default password
+function isAdminPasswordAllowed(password) {
+  if (process.env.NODE_ENV !== 'production') return true;
+  return password && password !== DEFAULT_ADMIN_PASSWORD;
+}
 
 // تتبع نقرة حجز (Public)
 router.post('/track-click', async (req, res) => {
@@ -117,6 +135,14 @@ router.post('/track-click', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
+
+    if (!isAdminPasswordAllowed(ADMIN_PASSWORD)) {
+      console.error('Admin login rejected: ADMIN_PASSWORD must be set in production');
+      return res.status(503).json({
+        success: false,
+        error: 'تم تعطيل تسجيل الدخول حتى يتم ضبط كلمة مرور الأدمن في البيئة'
+      });
+    }
 
     if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
       const token = crypto.randomBytes(32).toString('hex');
