@@ -18,9 +18,13 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// Middleware — in production set CORS_ORIGINS (comma-separated) to restrict origins
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+  : '*';
 app.use(cors({
-  origin: '*', // Allow all origins
+  origin: corsOrigins,
+  credentials: corsOrigins !== '*',
 }));
 app.use(express.json());
 
