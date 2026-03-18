@@ -20,6 +20,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Behind Railway/Proxy – trust first proxy so rate limiting & IP work correctly
+app.set('trust proxy', 1);
+
 // In production, require PASSWORD_SALT for legacy password verification
 if (process.env.NODE_ENV === 'production') {
   try {
