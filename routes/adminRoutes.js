@@ -398,7 +398,14 @@ router.get('/companies', adminAuth, async (req, res) => {
       result = await pool.query(`SELECT *, "${dateCol}" as created_at FROM companies ORDER BY id DESC`);
     }
 
-    res.json({ success: true, count: result.rows.length, companies: result.rows });
+    // Strip sensitive fields such as password hashes before returning to client
+    const companies = result.rows.map(row => {
+      const company = { ...row };
+      if (company.password) delete company.password;
+      return company;
+    });
+
+    res.json({ success: true, count: companies.length, companies });
   } catch (error) {
     console.error('Admin companies error:', error.message);
     res.json({ success: false, error: error.message, companies: [] });

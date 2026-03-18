@@ -272,7 +272,13 @@ router.post('/portal-bookings', corporateAuth, async (req, res) => {
 router.get('/employees', corporateAuth, adminOnly, async (req, res) => {
     try {
         const employees = await db.getEmployeesByCompany(req.user.companyId);
-        res.json({ success: true, employees });
+        // Do not expose password hashes in API response
+        const safeEmployees = employees.map(e => {
+            const copy = { ...e };
+            if (copy.password) delete copy.password;
+            return copy;
+        });
+        res.json({ success: true, employees: safeEmployees });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });
     }
